@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão de Férias</title>
+
+<!-- Aplica o tema guardado ANTES de desenhar a página (evita "piscar").
+     O tema fica guardado no navegador (localStorage), não na base de dados,
+     porque o ER não tem uma coluna para isso. -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('ferias-tema');
+      if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+    // DEMO: apagar estas 2 linhas quando já não precisares do modo demonstração
+    if (/[?&]demo=/.test(location.search)) document.documentElement.classList.add('modo-demo');
+  })();
+</script>
+
+<style>
+  /* ============================ TEMAS ============================ */
+  :root {
+    --bg:#0b0b0c; --surface:#141416; --surface-2:#1c1c20; --border:#2b2b31;
+    --text:#f2f2f3; --muted:#9d9da6;
+    --accent:#6c8cff; --accent-text:#0b0b0c;
+    --danger:#ff6b6b; --ok:#3ecf8e; --warn:#f5b942; --neutro:#9d9da6;
+    --sombra:0 1px 2px rgba(0,0,0,.4);
+  }
+  :root[data-theme="light"] {
+    --bg:#f4f5f8; --surface:#ffffff; --surface-2:#eef0f4; --border:#d9dce3;
+    --text:#16171b; --muted:#5b5e68;
+    --accent:#3556d8; --accent-text:#ffffff;
+    --danger:#c0292b; --ok:#16794f; --warn:#8f5a00; --neutro:#5b5e68;
+    --sombra:0 1px 2px rgba(20,24,40,.08);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  body { background:var(--bg); color:var(--text); min-height:100vh; font-size:15px; line-height:1.45; }
+  button, input, select, textarea { font-size:15px; color:inherit; }
+  [hidden] { display:none !important; }
+  h2 { font-size:18px; margin-bottom:14px; }
+  h3 { font-size:15px; margin:18px 0 10px; }
+  .muted { color:var(--muted); font-size:13px; }
+
+  /* ============================ BOTÕES / CAMPOS ============================ */
+  .btn { padding:9px 16px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); cursor:pointer; font-weight:600; }
+  .btn:hover { border-color:var(--accent); }
+  .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .tab:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .btn-primario { background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+  .btn-perigo { color:var(--danger); }
+  .btn-pequeno { padding:5px 10px; font-size:13px; }
+  .btn-ok { color:var(--ok); }
+  input, select, textarea { background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 11px; width:100%; }
+  textarea { resize:vertical; min-height:70px; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:5px; }
+  .linha-form { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; align-items:end; margin-bottom:12px; }
+  .linha-form .largo { grid-column:1 / -1; }
+  .msg-ok { color:var(--ok); font-size:13px; margin-top:8px; }
+  .msg-erro { color:var(--danger); font-size:13px; margin-top:8px; }
+
+  /* ============================ LOGIN ============================ */
+  /* O app.js mete display:none / flex neste elemento, por isso o centrar é feito aqui */
+  #login-screen { display:flex; justify-content:center; align-items:center; min-height:100vh; padding:16px; }
+  .login-box { width:100%; max-width:380px; padding:36px 32px; background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--sombra); }
+  .login-box h1 { font-size:22px; margin-bottom:6px; }
+  .login-box .muted { margin-bottom:22px; }
+  .login-box input { margin-bottom:14px; }
+  .login-box .btn-primario { width:100%; padding:12px; }
+  #error { color:var(--danger); font-size:13px; margin-top:14px; min-height:18px; }
+  .login-tema { position:fixed; top:14px; right:14px; }
+
+  /* ============================ APLICAÇÃO ============================ */
+  /* (id "black-screen" mantido só para o teu app.js continuar a funcionar) */
+  #black-screen { display:none; min-height:100vh; width:100%; }
+  html.modo-demo #login-screen { display:none !important; }
+  html.modo-demo #black-screen { display:block !important; }
+
+  .topbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 20px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:20; }
+  .marca { font-weight:700; font-size:17px; margin-right:auto; }
+  .utilizador { display:flex; align-items:center; gap:8px; }
+  .etiqueta { font-size:12px; padding:2px 9px; border-radius:99px; background:var(--surface-2); border:1px solid var(--border); color:var(--muted); }
+  .sino { position:relative; }
+  .sino-contador { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:99px; background:var(--danger); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .notif-caixa { position:absolute; right:0; top:46px; width:min(360px, 92vw); max-height:420px; overflow:auto; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.35); z-index:30; }
+  .notif-caixa header { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border); font-weight:600; }
+  .notif-item { padding:10px 14px; border-bottom:1px solid var(--border); font-size:14px; }
+  .notif-item.nao-lida { background:color-mix(in srgb, var(--accent) 10%, transparent); font-weight:600; }
+  .notif-item time { display:block; font-weight:400; color:var(--muted); font-size:12px; margin-top:2px; }
+  .notif-vazio { padding:18px 14px; color:var(--muted); font-size:14px; }
+
+  .faixa-ver-como { background:color-mix(in srgb, var(--warn) 20%, var(--surface)); border-bottom:1px solid var(--warn); padding:9px 20px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; font-size:14px; }
+
+  .menu { display:flex; gap:6px; padding:10px 20px 0; overflow-x:auto; border-bottom:1px solid var(--border); background:var(--surface); align-items:flex-end; }
+  .tab { padding:10px 16px; border:none; background:none; border-bottom:3px solid transparent; cursor:pointer; color:var(--muted); font-weight:600; white-space:nowrap; }
+  .tab[aria-selected="true"] { color:var(--text); border-bottom-color:var(--accent); }
+  .ver-como { margin-left:auto; display:flex; gap:8px; align-items:center; padding-bottom:6px; }
+  .ver-como select { width:190px; padding:6px 9px; }
+
+  main { max-width:1180px; margin:0 auto; padding:22px 20px 60px; }
+  .painel { display:none; }
+  .painel.ativo { display:block; }
+  .cartao { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; margin-bottom:18px; box-shadow:var(--sombra); }
+
+  .saldo { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; }
+  .saldo div { background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .saldo strong { display:block; font-size:28px; line-height:1.1; }
+  .saldo span { font-size:13px; color:var(--muted); }
+
+  .tabela-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  th { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; white-space:nowrap; }
+  td input, td select { padding:6px 8px; min-width:90px; }
+  td .btn + .btn { margin-left:6px; }
+  .vazio { color:var(--muted); padding:16px 4px; font-size:14px; }
+
+  .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:12px; font-weight:700; border:1px solid currentColor; }
+  .e-pendente { color:var(--warn); } .e-aceite { color:var(--ok); } .e-recusado { color:var(--danger); } .e-cancelado { color:var(--neutro); }
+
+  /* ============================ CALENDÁRIO ============================ */
+  .cal-topo { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .cal-topo h2 { margin:0 auto 0 0; }
+  .cal-topo select { width:auto; min-width:170px; }
+  .cal-titulo { font-size:20px; font-weight:700; margin-bottom:10px; }
+  .cal-grelha { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:5px; }
+  .cal-cab { text-align:center; font-size:12px; font-weight:700; color:var(--muted); padding:6px 0; text-transform:uppercase; }
+  .dia { min-height:92px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:6px 7px; display:flex; flex-direction:column; gap:4px; overflow:hidden; }
+  .dia.vazio-mes { background:transparent; border-color:transparent; }
+  .dia.fim-semana { opacity:.6; }
+  .dia.hoje { outline:2px solid var(--accent); }
+  .dia.cheio { background:color-mix(in srgb, var(--danger) 16%, var(--surface-2)); border-color:var(--danger); opacity:1; }
+  .dia-topo { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; }
+  .dia-contador { font-size:11px; font-weight:700; color:var(--muted); }
+  .dia.cheio .dia-contador { color:var(--danger); }
+  .chip { font-size:11.5px; padding:1px 6px; border-radius:6px; background:color-mix(in srgb, var(--ok) 22%, transparent); border:1px solid var(--ok); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chip.pendente { background:transparent; border-style:dashed; border-color:var(--warn); }
+  .chip.meu { box-shadow:0 0 0 2px var(--accent); }
+  .chip-mais { font-size:11px; color:var(--muted); }
+  .legenda { display:flex; gap:16px; flex-wrap:wrap; margin-top:14px; font-size:13px; color:var(--muted); align-items:center; }
+  .legenda .chip { display:inline-block; }
+
+  /* ============================ TELEMÓVEL ============================ */
+  @media (max-width:720px) {
+    main { padding:16px 12px 50px; }
+    .topbar, .menu, .faixa-ver-como { padding-left:12px; padding-right:12px; }
+    .dia { min-height:66px; padding:4px; }
+    .chip { font-size:10px; padding:0 4px; }
+    .cal-grelha { gap:3px; }
+    .ver-como { margin-left:0; }
+  }
+
+  /* ============================ TOASTS ============================ */
+  #toasts { position:fixed; right:16px; bottom:16px; display:flex; flex-direction:column; gap:8px; z-index:50; max-width:min(380px, 92vw); }
+  .toast { padding:11px 14px; border-radius:10px; background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--ok); box-shadow:0 8px 24px rgba(0,0,0,.3); font-size:14px; }
+  .toast.erro { border-left-color:var(--danger); }
+</style>
+</head>
+
+<body>
+
+<!--
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  COMO LIGAR ESTE index.html AO TEU app.js  (lê isto primeiro)                ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Este ficheiro tem SÓ a interface. Não fala com o Supabase. Quem busca e guarda os
+dados é o teu app.js. A interface expõe um objeto global chamado  UI  (mais abaixo,
+no <script> no fim deste ficheiro). Do teu app.js (que é um módulo) podes usar  UI
+diretamente, ou window.UI.
+
+────────────────────────────────────────────────────────────────────────────────
+1) IDs que o teu app.js JÁ usa. NÃO os mudes (ou muda nos dois sítios):
+     login-screen, black-screen, username, password, btn-login, btn-logout, error
+   • "black-screen" agora é o contentor de TODA a aplicação (já não é uma tela preta).
+     Se quiseres um nome melhor, troca para "app-screen" aqui e na linha 8 do app.js.
+   • O input "username" é um <input type="email"> (login por email, como no Supabase).
+   • Carregar Enter na palavra-passe já faz clique em "ENTRAR" (feito no script aqui).
+
+2) NO app.js, DEPOIS DE O LOGIN CORRER BEM  (em fazerLogin() E em verificarSessaoInicial()):
+     a) Vai à tabela  utilizadores  buscar a linha da pessoa que entrou:
+          tabela: utilizadores     filtro: email = data.session.user.email
+          colunas: id, nome, email, cargo, departamento_id, dias_totais_ano, dias_disponiveis
+     b) Chama   UI.configurarPerfil(linha)
+          → mostra só os separadores a que aquele cargo tem direito
+            (cargo tem de ser exatamente: 'Admin', 'Chefe' ou 'Colaborador')
+     c) Carrega os dados e chama as funções UI.render...  (lista no ponto 3)
+
+3) FUNÇÕES QUE DESENHAM (tu buscas os dados e passas-lhes uma lista/objeto):
+     UI.renderSaldo({dias_totais_ano, dias_disponiveis, dias_pendentes})
+     UI.renderMeusPedidos(lista)        → pedidos_ferias do próprio utilizador
+     UI.renderPedidosEquipa(lista)      → pedidos_ferias dos colaboradores (com o nome)
+     UI.renderMaisDiasChefe(lista)      → pedidos_alteracao_limite feitos por este chefe
+     UI.renderMaisDiasAdmin(lista)      → todos os pedidos_alteracao_limite
+     UI.renderDepartamentos(deps, utilizadores)
+     UI.renderUtilizadores(utilizadores, departamentos)
+     UI.renderCalendario(pedidos)       → pedidos_ferias (com o nome) do departamento
+     UI.renderNotificacoes(lista)       → notificacoes do próprio utilizador
+     UI.preencherSelectColaboradores(lista)   → "Pedir mais dias" (chefe)
+     UI.preencherSelectDepartamentos(lista)   → calendário e formulário de utilizadores (admin)
+     UI.preencherSelectVerComo(lista)         → "Ver como" (admin)
+   O formato de cada lista está comentado junto de cada painel (procura 🗄️).
+
+4) AÇÕES (cliques nos botões). Em cada uma, o UI chama UI.acoes.nomeDaAcao(...).
+   TU defines estas funções no app.js, por exemplo:
+        UI.acoes.cancelarPedido = async (id) => {
+          // ...update no Supabase...
+          if (error) return { erro: error.message };   // mostra o erro num aviso
+          return { ok: true };
+        };
+   • Devolve { ok: true } se correu bem ou { erro: 'texto' } se falhou.
+     O erro das regras da base de dados (trigger) vem em  error.message  e já está em português.
+   • Se devolveres ok, o UI mostra um aviso verde e chama  UI.acoes.recarregar()
+     → aí voltas a buscar tudo e a chamar os render...
+   • Enquanto não definires uma ação, o UI mostra "Ainda não ligado: nomeDaAcao".
+   Lista de ações:  criarPedido, cancelarPedido, decidirPedido, criarPedidoMaisDias,
+     decidirMaisDias, criarDepartamento, definirChefe, apagarDepartamento,
+     criarUtilizador, atualizarUtilizador, apagarUtilizador, verComo, sairVerComo,
+     marcarNotificacaoLida, marcarTodasLidas, mudouMes, mudouDepartamento, recarregar
+
+5) NO LOGOUT (fazerLogout) chama   UI.limpar()
+
+6) "VER COMO COLABORADOR" (só Admin, para quando há um bug): o botão chama UI.acoes.verComo(id).
+   Tu buscas a linha desse utilizador e chamas  UI.configurarPerfil(linha, { verComo: true }).
+   O botão "Voltar ao Admin" chama UI.acoes.sairVerComo() → voltas a chamar configurarPerfil
+   com a linha do admin. (Lembra-te: as regras de segurança (RLS) é que decidem o que o
+   Supabase devolve; o UI só desenha o que recebe.)
+
+7) MODO DEMONSTRAÇÃO: abre  index.html?demo=Colaborador  (ou Chefe, ou Admin) para veres a
+   interface com dados falsos, sem login e sem base de dados. Nada é guardado.
+   Antes de entregares o trabalho, apaga tudo o que tem a palavra DEMO (2 linhas no
+   <head>, o bloco "DEMO" no <script> e a regra .modo-demo no CSS).
+-->
+
+<!-- ═════════════════════════════ LOGIN ═════════════════════════════ -->
+<!-- Os ids (login-screen, username, password, btn-login, error) são os do teu app.js. -->
+<button class="btn btn-pequeno login-tema" id="btn-tema-login" type="button" aria-label="Mudar tema claro/escuro">🌓</button>
+
+<div id="login-screen">
+  <div class="login-box">
+    <h1>🗓️ Gestão de Férias</h1>
+    <p class="muted">Entra com o email e a palavra-passe da tua conta.</p>
+
+    <!-- 🔌 app.js: fazerLogin() lê  #username  (email)  e  #password -->
+    <input type="email" id="username" placeholder="Email" autocomplete="username">
+    <input type="password" id="password" placeholder="Palavra-passe" autocomplete="current-password">
+    <button class="btn btn-primario" id="btn-login" type="button">ENTRAR</button>
+
+    <!-- 🔌 app.js: errorText.textContent = error.message  escreve aqui -->
+    <p id="error"></p>
+  </div>
+</div>
+
+<!-- ═════════════════════════════ APLICAÇÃO ═════════════════════════════ -->
+<div id="black-screen">
+
+  <header class="topbar">
+    <div class="marca">🗓️ Gestão de Férias</div>
+
+    <div class="utilizador">
+      <!-- 🔌 preenchido por UI.configurarPerfil(): utilizadores.nome e utilizadores.cargo -->
+      <strong id="user-nome"></strong>
+      <span class="etiqueta" id="user-cargo"></span>
+    </div>
+
+    <!-- Notificações -->
+    <div class="sino">
+      <button class="btn btn-pequeno" id="btn-sino" type="button" aria-label="Notificações" aria-expanded="false">🔔</button>
+      <span class="sino-contador" id="sino-contador" hidden>0</span>
+      <div class="notif-caixa" id="notif-caixa" hidden>
+        <header>
+          <span>Notificações</span>
+          <!-- 🔌 UI.acoes.marcarTodasLidas()  → update notificacoes set lida = true where utilizador_id = o meu id -->
+          <button class="btn btn-pequeno" id="btn-todas-lidas" type="button">Marcar todas como lidas</button>
+        </header>
+        <!--
+          🗄️ BD: tabela notificacoes, só as do próprio utilizador (utilizador_id = o meu id),
+             mais recentes primeiro. Formato de cada item:
+             { id, mensagem, lida, data_criacao }
+          🔌 UI.renderNotificacoes(lista)
+        -->
+        <div id="notif-lista"></div>
+      </div>
+    </div>
+
+    <button class="btn btn-pequeno" id="btn-tema" type="button" aria-label="Mudar tema claro/escuro">🌓</button>
+    <!-- 🔌 app.js: btn-logout já está ligado a fazerLogout() -->
+    <button class="btn btn-pequeno btn-perigo" id="btn-logout" type="button">Terminar sessão</button>
+  </header>
+
+  <!-- Faixa mostrada quando o Admin está a "ver como" outra pessoa -->
+  <div class="faixa-ver-como" id="banner-ver-como" hidden>
+    <span>👁️ A ver como <strong id="ver-como-nome"></strong> (modo de verificação de erros).</span>
+    <!-- 🔌 UI.acoes.sairVerComo() -->
+    <button class="btn btn-pequeno" id="btn-sair-ver-como" type="button">Voltar ao Admin</button>
+  </div>
+
+  <!-- Separadores. data-roles = cargos que podem ver o separador. -->
+  <nav class="menu" id="menu" aria-label="Secções">
+    <button class="tab" data-painel="painel-ferias" data-roles="Colaborador Chefe" type="button">As minhas férias</button>
+    <button class="tab" data-painel="painel-equipa" data-roles="Chefe Admin" type="button">Pedidos de férias</button>
+    <button class="tab" data-painel="painel-calendario" data-roles="Colaborador Chefe Admin" type="button">Calendário</button>
+    <button class="tab" data-painel="painel-mais-dias" data-roles="Chefe" type="button">Pedir mais dias</button>
+    <button class="tab" data-painel="painel-aprovar-dias" data-roles="Admin" type="button">Pedidos de mais dias</button>
+    <button class="tab" data-painel="painel-departamentos" data-roles="Admin" type="button">Departamentos</button>
+    <button class="tab" data-painel="painel-utilizadores" data-roles="Admin" type="button">Utilizadores</button>
+
+    <!-- Só Admin: ver a aplicação como um colaborador/chefe -->
+    <div class="ver-como" data-roles="Admin">
+      <!-- 🗄️ BD: utilizadores (id, nome, cargo)  → UI.preencherSelectVerComo(lista) -->
+      <select id="ver-como-select" aria-label="Ver como"></select>
+      <!-- 🔌 UI.acoes.verComo(id) -->
+      <button class="btn btn-pequeno" id="btn-ver-como" type="button">Ver como</button>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ═══════════════ AS MINHAS FÉRIAS (Colaborador e Chefe) ═══════════════ -->
+    <section class="painel" id="painel-ferias">
+
+      <div class="cartao">
+        <h2>O meu saldo</h2>
+        <!--
+          🗄️ BD: tabela utilizadores, a linha do próprio utilizador:
+               dias_totais_ano     → "Dias por ano"
+               dias_disponiveis    → "Disponíveis"
+             "Pendentes" = soma dos dias úteis dos meus pedidos_ferias com estado = 'Pendente'
+             (podes calcular no app.js; a função UI.diasUteis(inicio, fim) ajuda)
+          🔌 UI.renderSaldo({ dias_totais_ano, dias_disponiveis, dias_pendentes })
+        -->
+        <div class="saldo">
+          <div><strong id="saldo-totais">–</strong><span>Dias por ano</span></div>
+          <div><strong id="saldo-disponiveis">–</strong><span>Disponíveis</span></div>
+          <div><strong id="saldo-pendentes">–</strong><span>Em pedidos pendentes</span></div>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <h2>Novo pedido de férias</h2>
+        <!--
+          🔌 UI.acoes.criarPedido({ data_inicio, data_fim })   (datas em texto 'AAAA-MM-DD')
+          🗄️ BD: insert em pedidos_ferias:
+               utilizador_id  = o meu id            (tu acrescentas)
+               data_inicio    = data_inicio
+               data_fim       = data_fim
+               estado         = 'Pendente' (já é o valor por defeito)
+               data_submissao = now() (já é o valor por defeito)
+             As regras (datas passadas, sobreposição, saldo, limite por departamento)
+             são verificadas pelo trigger da base de dados; se falhar, o texto do erro
+             vem em error.message → devolve { erro: error.message }.
+        -->
+        <form id="form-pedido" novalidate>
+          <div class="linha-form">
+            <div><label for="pedido-inicio">Data de início</label><input type="date" id="pedido-inicio" required></div>
+            <div><label for="pedido-fim">Data de fim</label><input type="date" id="pedido-fim" required></div>
+            <div><button class="btn btn-primario" type="submit">Enviar pedido</button></div>
+          </div>
+        </form>
+        <p class="muted" id="pedido-previsao"></p>
+        <p class="msg-erro" id="pedido-erro" hidden></p>
+      </div>
+
+      <div class="cartao">
+        <h2>Os meus pedidos</h2>
+        <!--
+          🗄️ BD: tabela pedidos_ferias onde utilizador_id = o meu id, mais recentes primeiro.
+             Formato de cada item:
+             { id, data_inicio, data_fim, estado, justificacao, data_submissao }
+          🔌 UI.renderMeusPedidos(lista)
+          🔌 botão "Cancelar" (só em 'Pendente') → UI.acoes.cancelarPedido(id)
+                → update pedidos_ferias set estado = 'Cancelado' where id = ...
+        -->
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Início</th><th>Fim</th><th>Dias úteis</th><th>Estado</th><th>Justificação do chefe</th><th></th></tr></thead>
+            <tbody id="tab-meus-pedidos"></tbody>
+          </table>
+        </div>
+        <p class="vazio" id="vazio-meus-pedidos">Ainda não fizeste nenhum pedido.</p>
+      </div>
+    </section>
+
+    <!-- ═══════════════ PEDIDOS DE FÉRIAS (Chefe e Admin) ═══════════════ -->
+    <section class="painel" id="painel-equipa">
+      <div class="cartao">
+        <div class="cal-topo">
+          <h2>Pedidos de férias da equipa</h2>
+          <select id="filtro-estado" aria-label="Filtrar por estado">
+            <option value="">Todos os estados</option>
+            <option value="Pendente" selected>Pendente</option>
+            <option value="Aceite">Aceite</option>
+            <option value="Recusado">Recusado</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+        </div>
+        <!--
+          🗄️ BD: pedidos_ferias dos colaboradores:
+               • Chefe → só os do SEU departamento (utilizadores.departamento_id = o meu)
+               • Admin → todos
+             com o nome da pessoa (junta com utilizadores.nome). Formato de cada item:
+             { id, utilizador_id, nome, data_inicio, data_fim, estado, justificacao, data_submissao }
+          🔌 UI.renderPedidosEquipa(lista)
+          🔌 botões Aceitar / Recusar (só em 'Pendente') →
+                UI.acoes.decidirPedido(id, 'Aceite' | 'Recusado', justificacao)
+             A justificação é OBRIGATÓRIA (está assim no ER). O UI já impede enviar vazia.
+                → update pedidos_ferias set estado = ..., justificacao = ... where id = ...
+             Quando fica 'Aceite', o saldo (utilizadores.dias_disponiveis) desce — isso
+             é feito por um trigger na base de dados (passo seguinte), não pelo app.js.
+        -->
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Colaborador</th><th>Início</th><th>Fim</th><th>Dias úteis</th><th>Estado</th><th>Justificação</th><th>Decisão</th></tr></thead>
+            <tbody id="tab-equipa"></tbody>
+          </table>
+        </div>
+        <p class="vazio" id="vazio-equipa">Não há pedidos para mostrar.</p>
+      </div>
+    </section>
+
+    <!-- ═══════════════ CALENDÁRIO (todos) ═══════════════ -->
+    <section class="painel" id="painel-calendario">
+      <div class="cartao">
+        <div class="cal-topo">
+          <h2>Calendário de férias</h2>
+          <!--
+            Só Admin: escolher o departamento.
+            🗄️ BD: departamentos (id, nome)  → UI.preencherSelectDepartamentos(lista)
+            🔌 UI.acoes.mudouDepartamento(id)  → volta a buscar os pedidos desse departamento
+          -->
+          <select id="cal-departamento" data-roles="Admin" aria-label="Departamento"></select>
+          <button class="btn btn-pequeno" id="cal-anterior" type="button" aria-label="Mês anterior">◀</button>
+          <button class="btn btn-pequeno" id="cal-hoje" type="button">Hoje</button>
+          <button class="btn btn-pequeno" id="cal-seguinte" type="button" aria-label="Mês seguinte">▶</button>
+        </div>
+        <div class="cal-titulo" id="cal-titulo"></div>
+        <!--
+          🗄️ BD: pedidos_ferias do DEPARTAMENTO da pessoa (o Admin escolhe o departamento),
+             com estado 'Aceite' ou 'Pendente', com o nome (junta com utilizadores.nome).
+             Formato de cada item:
+             { id, utilizador_id, nome, data_inicio, data_fim, estado }
+          🔌 UI.renderCalendario(lista)
+          🔌 Ao mudar de mês o UI chama UI.acoes.mudouMes(ano, mes)  (mes: 1 a 12).
+             Podes ignorar e buscar tudo de uma vez, ou buscar só esse mês.
+          Regra visual: um dia fica a vermelho ⛔ quando há 3 pessoas DIFERENTES com
+          estado 'Aceite' nesse dia (o limite está em UI.config.limiteDiario e tem de ser
+          igual ao do trigger na base de dados).
+        -->
+        <div class="cal-grelha" id="cal-grelha"></div>
+        <div class="legenda">
+          <span><span class="chip">Nome</span> Aceite</span>
+          <span><span class="chip pendente">Nome</span> Pendente</span>
+          <span><span class="chip meu">Nome</span> Pedido meu</span>
+          <span>⛔ Limite de pessoas atingido</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ PEDIR MAIS DIAS (Chefe) ═══════════════ -->
+    <section class="painel" id="painel-mais-dias">
+      <div class="cartao">
+        <h2>Pedir mais (ou menos) dias de férias para um colaborador</h2>
+        <!--
+          🗄️ BD: utilizadores do meu departamento (id, nome) → UI.preencherSelectColaboradores(lista)
+          🔌 UI.acoes.criarPedidoMaisDias({ colaborador_id, dias_ajuste, justificacao })
+             insert em pedidos_alteracao_limite:
+               chefe_id        = o meu id (tu acrescentas)
+               colaborador_id, dias_ajuste (pode ser negativo, ex.: -1), justificacao (obrigatória)
+               estado = 'Pendente', data_pedido = now() (valores por defeito)
+        -->
+        <form id="form-mais-dias" novalidate>
+          <div class="linha-form">
+            <div><label for="pad-colaborador">Colaborador</label><select id="pad-colaborador" required></select></div>
+            <div><label for="pad-dias">Dias (ex.: 2 ou -1)</label><input type="number" id="pad-dias" min="-30" max="30" step="1" value="1" required></div>
+            <div class="largo"><label for="pad-justificacao">Justificação (obrigatória)</label><textarea id="pad-justificacao" required></textarea></div>
+          </div>
+          <button class="btn btn-primario" type="submit">Enviar ao Admin</button>
+          <p class="msg-erro" id="pad-erro" hidden></p>
+        </form>
+      </div>
+
+      <div class="cartao">
+        <h2>Os meus pedidos de mais dias</h2>
+        <!--
+          🗄️ BD: pedidos_alteracao_limite onde chefe_id = o meu id, com o nome do colaborador.
+             { id, colaborador_id, nome_colaborador, dias_ajuste, justificacao, estado, data_pedido }
+          🔌 UI.renderMaisDiasChefe(lista)
+        -->
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Colaborador</th><th>Dias</th><th>Justificação</th><th>Data</th><th>Estado</th></tr></thead>
+            <tbody id="tab-mais-dias-chefe"></tbody>
+          </table>
+        </div>
+        <p class="vazio" id="vazio-mais-dias-chefe">Ainda não fizeste nenhum pedido.</p>
+      </div>
+    </section>
+
+    <!-- ═══════════════ PEDIDOS DE MAIS DIAS (Admin) ═══════════════ -->
+    <section class="painel" id="painel-aprovar-dias">
+      <div class="cartao">
+        <h2>Pedidos de alteração de dias</h2>
+        <!--
+          🗄️ BD: todos os pedidos_alteracao_limite, com os nomes do chefe e do colaborador:
+             { id, nome_chefe, nome_colaborador, dias_ajuste, justificacao, estado, data_pedido }
+          🔌 UI.renderMaisDiasAdmin(lista)
+          🔌 Aceitar / Recusar → UI.acoes.decidirMaisDias(id, 'Aceite' | 'Recusado')
+                → update pedidos_alteracao_limite set estado = ... where id = ...
+             Quando fica 'Aceite' os dias do colaborador mudam (utilizadores.dias_totais_ano e
+             dias_disponiveis) — isso será feito por um trigger na base de dados.
+        -->
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Chefe</th><th>Colaborador</th><th>Dias</th><th>Justificação</th><th>Data</th><th>Estado</th><th>Decisão</th></tr></thead>
+            <tbody id="tab-mais-dias-admin"></tbody>
+          </table>
+        </div>
+        <p class="vazio" id="vazio-mais-dias-admin">Não há pedidos.</p>
+      </div>
+    </section>
+
+    <!-- ═══════════════ DEPARTAMENTOS (Admin) ═══════════════ -->
+    <section class="painel" id="painel-departamentos">
+      <div class="cartao">
+        <h2>Departamentos</h2>
+        <!-- 🔌 UI.acoes.criarDepartamento(nome)  → insert em departamentos (nome) -->
+        <form id="form-departamento" novalidate>
+          <div class="linha-form">
+            <div><label for="dep-nome">Nome do novo departamento</label><input type="text" id="dep-nome" maxlength="80" required></div>
+            <div><button class="btn btn-primario" type="submit">Criar departamento</button></div>
+          </div>
+        </form>
+        <!--
+          🗄️ BD: departamentos (id, nome, chefe_id) + utilizadores (id, nome, departamento_id)
+          🔌 UI.renderDepartamentos(departamentos, utilizadores)
+          🔌 Escolher chefe → UI.acoes.definirChefe(departamentoId, utilizadorId ou null)
+                → update departamentos set chefe_id = ... where id = ...
+                (chefe_id é único: um utilizador só pode ser chefe de um departamento)
+          🔌 Apagar → UI.acoes.apagarDepartamento(id)
+        -->
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Departamento</th><th>Chefe</th><th>Pessoas</th><th></th></tr></thead>
+            <tbody id="tab-departamentos"></tbody>
+          </table>
+        </div>
+        <p class="vazio" id="vazio-departamentos">Ainda não há departamentos.</p>
+      </div>
+    </section>
+
+    <!-- ═══════════════ UTILIZADORES (Admin) ═══════════════ -->
+    <section class="painel" id="painel-utilizadores">
+      <div class="cartao">
+        <h2>Criar utilizador</h2>
+        <!--
+          🔌 UI.acoes.criarUtilizador({ nome, email, password, cargo, departamento_id, dias_totais_ano })
+          ⚠️ Criar a CONTA DE LOGIN (Supabase Auth) com a palavra-passe NÃO se faz bem a partir
+             do browser: precisa da chave de serviço (secreta). As duas opções normais são:
+               (a) criar a conta no painel do Supabase (Authentication → Users) e aqui só
+                   inserir a linha em utilizadores com o MESMO email;
+               (b) uma Edge Function do Supabase que cria a conta e a linha (é a que o
+                   professor vai achar mais "completa").
+             NUNCA coloques a chave de serviço no app.js/index.html.
+          🗄️ BD: insert em utilizadores (nome, email, cargo, departamento_id,
+                  dias_totais_ano, dias_disponiveis = dias_totais_ano).
+        -->
+        <form id="form-utilizador" novalidate>
+          <div class="linha-form">
+            <div><label for="ut-nome">Nome completo</label><input type="text" id="ut-nome" maxlength="100" required></div>
+            <div><label for="ut-email">Email (login)</label><input type="email" id="ut-email" required></div>
+            <div><label for="ut-password">Palavra-passe inicial</label><input type="password" id="ut-password" minlength="6" autocomplete="new-password" required></div>
+            <div><label for="ut-cargo">Cargo</label>
+              <select id="ut-cargo"><option>Colaborador</option><option>Chefe</option><option>Admin</option></select></div>
+            <div><label for="ut-departamento">Departamento</label><select id="ut-departamento"></select></div>
+            <div><label for="ut-dias">Dias por ano</label><input type="number" id="ut-dias" min="0" max="60" value="22" required></div>
+          </div>
+          <button class="btn btn-primario" type="submit">Criar utilizador</button>
+          <p class="msg-erro" id="ut-erro" hidden></p>
+        </form>
+      </div>
+
+      <div class="cartao">
+        <h2>Todos os utilizadores</h2>
+        <!--
+          🗄️ BD: utilizadores (id, nome, email, cargo, departamento_id, dias_totais_ano, dias_disponiveis)
+          🔌 UI.renderUtilizadores(utilizadores, departamentos)
+          🔌 Mudar departamento → UI.acoes.atualizarUtilizador(id, { departamento_id })
+          🔌 Guardar dias por ano → UI.acoes.atualizarUtilizador(id, { dias_totais_ano })
+             (pensa no que acontece ao dias_disponiveis quando o total muda)
+          🔌 Apagar → UI.acoes.apagarUtilizador(id)
+        -->
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Nome</th><th>Email</th><th>Cargo</th><th>Departamento</th><th>Dias/ano</th><th>Disponíveis</th><th></th></tr></thead>
+            <tbody id="tab-utilizadores"></tbody>
+          </table>
+        </div>
+        <p class="vazio" id="vazio-utilizadores">Ainda não há utilizadores.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<!-- 🔌 O teu ficheiro. Tem de ficar DEPOIS do <script> da interface (abaixo) para o objeto UI já existir. -->
+<script>
+/* ════════════════════════════════════════════════════════════════════════════
+   INTERFACE (só desenha). Não fala com o Supabase.
+   Tudo o que o app.js precisa está no objeto global  UI  (ver o guia no topo).
+   ════════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var UI = {};
+  window.UI = UI;
+
+  /* ---------- Configuração ---------- */
+  // Tem de ser IGUAL ao limite que está no trigger da base de dados.
+  UI.config = { limiteDiario: 3 };
+  UI.perfil = null;           // a linha de utilizadores de quem está a usar a página
+
+  /* ---------- Pequenas ajudas ---------- */
+  var ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return ESC[c]; }); }
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function iso(ano, mes0, dia) { return ano + '-' + pad(mes0 + 1) + '-' + pad(dia); }   // mes0: 0 a 11
+  function hojeISO() { var d = new Date(); return iso(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function fmt(s) { if (!s) return '—'; var p = String(s).slice(0, 10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  function fmtHora(ts) { if (!ts) return ''; var d = new Date(ts); return isNaN(d) ? '' : d.toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' }); }
+  function parte(s) { return [+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)]; }
+  function primeiroNome(n) { return String(n || '').trim().split(' ')[0]; }
+
+  // Dias úteis (segunda a sexta) entre duas datas 'AAAA-MM-DD', inclusive. Só para PRÉ-VISUALIZAR:
+  // quem decide de verdade é a base de dados.
+  UI.diasUteis = function (a, b) {
+    if (!a || !b || b < a) return 0;
+    var p = parte(a), q = parte(b), d = new Date(p[0], p[1], p[2]), fim = new Date(q[0], q[1], q[2]), n = 0, guarda = 0;
+    while (d <= fim && guarda++ < 800) { var w = d.getDay(); if (w !== 0 && w !== 6) n++; d.setDate(d.getDate() + 1); }
+    return n;
+  };
+
+  function badge(estado) {
+    var cls = String(estado || '').toLowerCase().replace(/[^a-z]/g, '');
+    return '<span class="badge e-' + cls + '">' + esc(estado) + '</span>';
+  }
+  function mostrarVazio(idTabela, idVazio, n) { $(idVazio).hidden = n > 0; $(idTabela).closest('table').hidden = n === 0; }
+
+  UI.toast = function (texto, tipo) {
+    var t = document.createElement('div');
+    t.className = 'toast' + (tipo === 'erro' ? ' erro' : '');
+    t.textContent = texto;
+    $('#toasts').appendChild(t);
+    setTimeout(function () { t.remove(); }, tipo === 'erro' ? 7000 : 3500);
+  };
+
+  /* ---------- Ações a ligar pelo app.js ---------- */
+  var NOMES_ACOES = ['criarPedido', 'cancelarPedido', 'decidirPedido', 'criarPedidoMaisDias', 'decidirMaisDias',
+    'criarDepartamento', 'definirChefe', 'apagarDepartamento', 'criarUtilizador', 'atualizarUtilizador',
+    'apagarUtilizador', 'verComo', 'sairVerComo', 'marcarNotificacaoLida', 'marcarTodasLidas'];
+  UI.acoes = {};
+  NOMES_ACOES.forEach(function (n) {
+    UI.acoes[n] = function () { console.warn('[UI] Ainda não ligado: UI.acoes.' + n); return Promise.resolve({ erro: 'Ainda não ligado: ' + n }); };
+  });
+  UI.acoes.mudouMes = function () {};            // opcional
+  UI.acoes.mudouDepartamento = function () {};   // opcional
+  UI.acoes.recarregar = function () { return Promise.resolve(); };
+
+  // Corre uma ação do app.js, mostra o aviso e recarrega os dados se correu bem.
+  function executar(nome) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return Promise.resolve().then(function () { return UI.acoes[nome].apply(null, args); }).then(function (r) {
+      if (r && r.erro) { UI.toast(r.erro, 'erro'); return r; }
+      UI.toast('Feito.', 'ok');
+      return Promise.resolve(UI.acoes.recarregar()).then(function () { return r || { ok: true }; });
+    }).catch(function (e) { UI.toast(e && e.message ? e.message : 'Erro inesperado.', 'erro'); return { erro: String(e) }; });
+  }
+
+  /* ---------- Tema claro / escuro ---------- */
+  function aplicarTema(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('ferias-tema', t); } catch (e) {}
+    ['#btn-tema', '#btn-tema-login'].forEach(function (s) { $(s).textContent = t === 'dark' ? '☀️' : '🌙'; });
+  }
+  function alternarTema() { aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); }
+  $('#btn-tema').addEventListener('click', alternarTema);
+  $('#btn-tema-login').addEventListener('click', alternarTema);
+  aplicarTema(document.documentElement.getAttribute('data-theme'));
+
+  /* ---------- Login: Enter faz clique em ENTRAR ---------- */
+  ['#username', '#password'].forEach(function (s) {
+    $(s).addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('#btn-login').click(); } });
+  });
+
+  /* ---------- Separadores ---------- */
+  function mostrarPainel(id) {
+    $$('.painel').forEach(function (p) { p.classList.toggle('ativo', p.id === id); });
+    $$('#menu .tab').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.painel === id)); });
+    if (id === 'painel-calendario') desenharCalendario();
+  }
+  UI.mostrarPainel = mostrarPainel;
+  $$('#menu .tab').forEach(function (b) { b.addEventListener('click', function () { mostrarPainel(b.dataset.painel); }); });
+
+  /* ---------- Perfil ---------- */
+  // perfil = { id, nome, email, cargo, departamento_id, dias_totais_ano, dias_disponiveis }
+  UI.configurarPerfil = function (perfil, opcoes) {
+    opcoes = opcoes || {};
+    UI.perfil = perfil;
+    var cargo = perfil.cargo;
+    $('#user-nome').textContent = perfil.nome || perfil.email || '';
+    $('#user-cargo').textContent = cargo || '';
+    $$('[data-roles]').forEach(function (e) {
+      var ok = e.dataset.roles.split(' ').indexOf(cargo) !== -1;
+      e.hidden = !ok;
+    });
+    // Em "ver como", o Admin não vê os controlos de admin
+    $('#banner-ver-como').hidden = !opcoes.verComo;
+    if (opcoes.verComo) { $('#ver-como-nome').textContent = (perfil.nome || '') + ' (' + cargo + ')'; $('.ver-como').hidden = true; }
+    var primeira = cargo === 'Colaborador' ? 'painel-ferias' : 'painel-equipa';
+    mostrarPainel(primeira);
+    if (!cargo || ['Admin', 'Chefe', 'Colaborador'].indexOf(cargo) === -1) {
+      UI.toast('Cargo inválido na base de dados: "' + cargo + '". Tem de ser Admin, Chefe ou Colaborador.', 'erro');
+    }
+  };
+
+  UI.limpar = function () {
+    UI.perfil = null;
+    $('#user-nome').textContent = ''; $('#user-cargo').textContent = '';
+    $$('.painel').forEach(function (p) { p.classList.remove('ativo'); });
+    $('#banner-ver-como').hidden = true; $('#notif-caixa').hidden = true;
+    ['#tab-meus-pedidos', '#tab-equipa', '#tab-mais-dias-chefe', '#tab-mais-dias-admin', '#tab-departamentos', '#tab-utilizadores', '#notif-lista', '#cal-grelha']
+      .forEach(function (s) { $(s).innerHTML = ''; });
+    cal.pedidos = []; ultimaEquipa = [];
+    $('#sino-contador').hidden = true;
+  };
+
+  $('#btn-sair-ver-como').addEventListener('click', function () { executar('sairVerComo'); });
+  $('#btn-ver-como').addEventListener('click', function () {
+    var id = Number($('#ver-como-select').value);
+    if (id) executar('verComo', id);
+  });
+
+  /* ---------- Selects ---------- */
+  function opcoes(lista, valor, texto, vazio) {
+    var h = vazio ? '<option value="">' + esc(vazio) + '</option>' : '';
+    return h + lista.map(function (x) { return '<option value="' + esc(x[valor]) + '">' + esc(typeof texto === 'function' ? texto(x) : x[texto]) + '</option>'; }).join('');
+  }
+  UI.preencherSelectColaboradores = function (lista) { $('#pad-colaborador').innerHTML = opcoes(lista, 'id', 'nome'); };
+  UI.preencherSelectDepartamentos = function (lista) {
+    var atual = $('#cal-departamento').value;
+    $('#cal-departamento').innerHTML = opcoes(lista, 'id', 'nome');
+    if (atual) $('#cal-departamento').value = atual;
+    $('#ut-departamento').innerHTML = opcoes(lista, 'id', 'nome', '— sem departamento —');
+  };
+  UI.preencherSelectVerComo = function (lista) {
+    $('#ver-como-select').innerHTML = opcoes(lista, 'id', function (u) { return u.nome + ' (' + u.cargo + ')'; });
+  };
+  $('#cal-departamento').addEventListener('change', function () { UI.acoes.mudouDepartamento(Number(this.value) || null); });
+
+  /* ---------- Saldo e "As minhas férias" ---------- */
+  UI.renderSaldo = function (s) {
+    $('#saldo-totais').textContent = s.dias_totais_ano != null ? s.dias_totais_ano : '–';
+    $('#saldo-disponiveis').textContent = s.dias_disponiveis != null ? s.dias_disponiveis : '–';
+    $('#saldo-pendentes').textContent = s.dias_pendentes != null ? s.dias_pendentes : '–';
+    if (UI.perfil) { UI.perfil.dias_totais_ano = s.dias_totais_ano; UI.perfil.dias_disponiveis = s.dias_disponiveis; }
+    atualizarPrevisao();
+  };
+
+  UI.renderMeusPedidos = function (lista) {
+    $('#tab-meus-pedidos').innerHTML = lista.map(function (p) {
+      return '<tr><td>' + fmt(p.data_inicio) + '</td><td>' + fmt(p.data_fim) + '</td><td>' + UI.diasUteis(p.data_inicio, p.data_fim) + '</td>' +
+        '<td>' + badge(p.estado) + '</td><td>' + esc(p.justificacao || '—') + '</td>' +
+        '<td>' + (p.estado === 'Pendente' ? '<button class="btn btn-pequeno btn-perigo" type="button" data-acao="cancelar-pedido" data-id="' + esc(p.id) + '">Cancelar</button>' : '') + '</td></tr>';
+    }).join('');
+    mostrarVazio('#tab-meus-pedidos', '#vazio-meus-pedidos', lista.length);
+  };
+
+  // Formulário de novo pedido
+  function atualizarPrevisao() {
+    var a = $('#pedido-inicio').value, b = $('#pedido-fim').value, el = $('#pedido-previsao');
+    if (!a || !b) { el.textContent = ''; return; }
+    if (b < a) { el.textContent = 'A data de fim tem de ser igual ou depois da data de início.'; return; }
+    var n = UI.diasUteis(a, b), t = n + ' dia(s) útil(eis) neste pedido.';
+    if (UI.perfil && UI.perfil.dias_disponiveis != null) t += ' Tens ' + UI.perfil.dias_disponiveis + ' disponíveis.';
+    el.textContent = t;
+  }
+  $('#pedido-inicio').addEventListener('input', atualizarPrevisao);
+  $('#pedido-fim').addEventListener('input', atualizarPrevisao);
+  $('#pedido-inicio').min = hojeISO(); $('#pedido-fim').min = hojeISO();
+
+  function mostrarErro(id, texto) { var e = $(id); e.textContent = texto || ''; e.hidden = !texto; }
+
+  $('#form-pedido').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var a = $('#pedido-inicio').value, b = $('#pedido-fim').value;
+    // Estas verificações são só para ajudar. A base de dados repete-as (é ela que manda).
+    if (!a || !b) return mostrarErro('#pedido-erro', 'Escolhe a data de início e a de fim.');
+    if (b < a) return mostrarErro('#pedido-erro', 'A data de fim tem de ser igual ou depois da data de início.');
+    if (a < hojeISO()) return mostrarErro('#pedido-erro', 'Não podes pedir férias em datas que já passaram.');
+    if (UI.diasUteis(a, b) === 0) return mostrarErro('#pedido-erro', 'O período escolhido não tem dias úteis.');
+    mostrarErro('#pedido-erro', '');
+    executar('criarPedido', { data_inicio: a, data_fim: b }).then(function (r) {
+      if (r && r.erro) mostrarErro('#pedido-erro', r.erro);
+      else { $('#form-pedido').reset(); $('#pedido-previsao').textContent = ''; }
+    });
+  });
+
+  /* ---------- Pedidos da equipa (Chefe e Admin) ---------- */
+  var ultimaEquipa = [];
+  UI.renderPedidosEquipa = function (lista) {
+    if (lista) ultimaEquipa = lista;
+    var f = $('#filtro-estado').value;
+    var vis = ultimaEquipa.filter(function (p) { return !f || p.estado === f; });
+    $('#tab-equipa').innerHTML = vis.map(function (p) {
+      var decisao = p.estado === 'Pendente'
+        ? '<button class="btn btn-pequeno btn-ok" type="button" data-acao="decidir-pedido" data-estado="Aceite" data-id="' + esc(p.id) + '">Aceitar</button>' +
+          '<button class="btn btn-pequeno btn-perigo" type="button" data-acao="decidir-pedido" data-estado="Recusado" data-id="' + esc(p.id) + '">Recusar</button>'
+        : '';
+      var just = p.estado === 'Pendente'
+        ? '<input type="text" id="just-' + esc(p.id) + '" placeholder="Justificação (obrigatória)" maxlength="300" aria-label="Justificação">'
+        : esc(p.justificacao || '—');
+      return '<tr><td>' + esc(p.nome) + '</td><td>' + fmt(p.data_inicio) + '</td><td>' + fmt(p.data_fim) + '</td><td>' + UI.diasUteis(p.data_inicio, p.data_fim) + '</td>' +
+        '<td>' + badge(p.estado) + '</td><td>' + just + '</td><td>' + decisao + '</td></tr>';
+    }).join('');
+    mostrarVazio('#tab-equipa', '#vazio-equipa', vis.length);
+  };
+  $('#filtro-estado').addEventListener('change', function () { UI.renderPedidosEquipa(); });
+
+  /* ---------- Pedir mais dias (Chefe) ---------- */
+  UI.renderMaisDiasChefe = function (lista) {
+    $('#tab-mais-dias-chefe').innerHTML = lista.map(function (p) {
+      return '<tr><td>' + esc(p.nome_colaborador) + '</td><td>' + (p.dias_ajuste > 0 ? '+' : '') + esc(p.dias_ajuste) + '</td><td>' + esc(p.justificacao) +
+        '</td><td>' + fmtHora(p.data_pedido) + '</td><td>' + badge(p.estado) + '</td></tr>';
+    }).join('');
+    mostrarVazio('#tab-mais-dias-chefe', '#vazio-mais-dias-chefe', lista.length);
+  };
+  $('#form-mais-dias').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var col = Number($('#pad-colaborador').value), dias = parseInt($('#pad-dias').value, 10), just = $('#pad-justificacao').value.trim();
+    if (!col) return mostrarErro('#pad-erro', 'Escolhe um colaborador.');
+    if (!dias) return mostrarErro('#pad-erro', 'Indica um número de dias diferente de zero.');
+    if (!just) return mostrarErro('#pad-erro', 'A justificação é obrigatória.');
+    mostrarErro('#pad-erro', '');
+    executar('criarPedidoMaisDias', { colaborador_id: col, dias_ajuste: dias, justificacao: just }).then(function (r) {
+      if (r && r.erro) mostrarErro('#pad-erro', r.erro); else $('#form-mais-dias').reset();
+    });
+  });
+
+  /* ---------- Pedidos de mais dias (Admin) ---------- */
+  UI.renderMaisDiasAdmin = function (lista) {
+    $('#tab-mais-dias-admin').innerHTML = lista.map(function (p) {
+      var dec = p.estado === 'Pendente'
+        ? '<button class="btn btn-pequeno btn-ok" type="button" data-acao="decidir-mais-dias" data-estado="Aceite" data-id="' + esc(p.id) + '">Aceitar</button>' +
+          '<button class="btn btn-pequeno btn-perigo" type="button" data-acao="decidir-mais-dias" data-estado="Recusado" data-id="' + esc(p.id) + '">Recusar</button>' : '';
+      return '<tr><td>' + esc(p.nome_chefe) + '</td><td>' + esc(p.nome_colaborador) + '</td><td>' + (p.dias_ajuste > 0 ? '+' : '') + esc(p.dias_ajuste) + '</td><td>' + esc(p.justificacao) +
+        '</td><td>' + fmtHora(p.data_pedido) + '</td><td>' + badge(p.estado) + '</td><td>' + dec + '</td></tr>';
+    }).join('');
+    mostrarVazio('#tab-mais-dias-admin', '#vazio-mais-dias-admin', lista.length);
+  };
+
+  /* ---------- Departamentos (Admin) ---------- */
+  UI.renderDepartamentos = function (deps, utilizadores) {
+    $('#tab-departamentos').innerHTML = deps.map(function (d) {
+      var membros = utilizadores.filter(function (u) { return u.departamento_id === d.id; });
+      var sel = '<select data-acao="mudar-chefe" data-id="' + esc(d.id) + '" aria-label="Chefe de ' + esc(d.nome) + '">' +
+        '<option value="">— sem chefe —</option>' +
+        membros.map(function (u) { return '<option value="' + esc(u.id) + '"' + (u.id === d.chefe_id ? ' selected' : '') + '>' + esc(u.nome) + '</option>'; }).join('') + '</select>';
+      return '<tr><td>' + esc(d.nome) + '</td><td>' + sel + '</td><td>' + membros.length +
+        '</td><td><button class="btn btn-pequeno btn-perigo" type="button" data-acao="apagar-departamento" data-id="' + esc(d.id) + '">Apagar</button></td></tr>';
+    }).join('');
+    mostrarVazio('#tab-departamentos', '#vazio-departamentos', deps.length);
+  };
+  $('#form-departamento').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var nome = $('#dep-nome').value.trim();
+    if (!nome) return UI.toast('Escreve o nome do departamento.', 'erro');
+    executar('criarDepartamento', nome).then(function (r) { if (!(r && r.erro)) $('#form-departamento').reset(); });
+  });
+
+  /* ---------- Utilizadores (Admin) ---------- */
+  UI.renderUtilizadores = function (lista, deps) {
+    $('#tab-utilizadores').innerHTML = lista.map(function (u) {
+      var sel = '<select data-acao="mudar-dept-utilizador" data-id="' + esc(u.id) + '" aria-label="Departamento de ' + esc(u.nome) + '">' +
+        '<option value="">— sem departamento —</option>' +
+        deps.map(function (d) { return '<option value="' + esc(d.id) + '"' + (d.id === u.departamento_id ? ' selected' : '') + '>' + esc(d.nome) + '</option>'; }).join('') + '</select>';
+      var dias = '<input type="number" id="dias-' + esc(u.id) + '" value="' + esc(u.dias_totais_ano) + '" min="0" max="60" style="width:80px" aria-label="Dias por ano de ' + esc(u.nome) + '"> ' +
+        '<button class="btn btn-pequeno" type="button" data-acao="guardar-dias" data-id="' + esc(u.id) + '">Guardar</button>';
+      return '<tr><td>' + esc(u.nome) + '</td><td>' + esc(u.email) + '</td><td>' + esc(u.cargo) + '</td><td>' + sel + '</td><td>' + dias + '</td><td>' + esc(u.dias_disponiveis) +
+        '</td><td><button class="btn btn-pequeno btn-perigo" type="button" data-acao="apagar-utilizador" data-id="' + esc(u.id) + '">Apagar</button></td></tr>';
+    }).join('');
+    mostrarVazio('#tab-utilizadores', '#vazio-utilizadores', lista.length);
+  };
+  $('#form-utilizador').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var d = {
+      nome: $('#ut-nome').value.trim(), email: $('#ut-email').value.trim(), password: $('#ut-password').value,
+      cargo: $('#ut-cargo').value, departamento_id: Number($('#ut-departamento').value) || null,
+      dias_totais_ano: parseInt($('#ut-dias').value, 10)
+    };
+    if (!d.nome || !d.email) return mostrarErro('#ut-erro', 'Preenche o nome e o email.');
+    if (d.password.length < 6) return mostrarErro('#ut-erro', 'A palavra-passe precisa de pelo menos 6 caracteres.');
+    if (isNaN(d.dias_totais_ano) || d.dias_totais_ano < 0) return mostrarErro('#ut-erro', 'Dias por ano inválidos.');
+    mostrarErro('#ut-erro', '');
+    executar('criarUtilizador', d).then(function (r) {
+      if (r && r.erro) mostrarErro('#ut-erro', r.erro); else $('#form-utilizador').reset();
+    });
+  });
+
+  /* ---------- Cliques nas tabelas (um só "ouvinte" para tudo) ---------- */
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-acao]');
+    if (!b) return;
+    var acao = b.dataset.acao, id = Number(b.dataset.id);
+    if (acao === 'cancelar-pedido') { if (confirm('Cancelar este pedido de férias?')) executar('cancelarPedido', id); }
+    else if (acao === 'decidir-pedido') {
+      var campo = $('#just-' + id), just = campo ? campo.value.trim() : '';
+      if (!just) { UI.toast('Escreve a justificação antes de decidir.', 'erro'); if (campo) campo.focus(); return; }
+      executar('decidirPedido', id, b.dataset.estado, just);
+    }
+    else if (acao === 'decidir-mais-dias') executar('decidirMaisDias', id, b.dataset.estado);
+    else if (acao === 'apagar-departamento') { if (confirm('Apagar este departamento?')) executar('apagarDepartamento', id); }
+    else if (acao === 'apagar-utilizador') { if (confirm('Apagar este utilizador e os seus pedidos?')) executar('apagarUtilizador', id); }
+    else if (acao === 'guardar-dias') {
+      var v = parseInt($('#dias-' + id).value, 10);
+      if (isNaN(v) || v < 0) return UI.toast('Dias por ano inválidos.', 'erro');
+      executar('atualizarUtilizador', id, { dias_totais_ano: v });
+    }
+    else if (acao === 'marcar-lida') executar('marcarNotificacaoLida', id);
+  });
+  document.addEventListener('change', function (ev) {
+    var s = ev.target.closest('select[data-acao]');
+    if (!s) return;
+    var id = Number(s.dataset.id), v = s.value ? Number(s.value) : null;
+    if (s.dataset.acao === 'mudar-chefe') executar('definirChefe', id, v);
+    else if (s.dataset.acao === 'mudar-dept-utilizador') executar('atualizarUtilizador', id, { departamento_id: v });
+  });
+
+  /* ---------- Notificações ---------- */
+  UI.renderNotificacoes = function (lista) {
+    var nao = lista.filter(function (n) { return !n.lida; }).length;
+    var c = $('#sino-contador'); c.textContent = nao > 9 ? '9+' : nao; c.hidden = nao === 0;
+    $('#notif-lista').innerHTML = lista.length ? lista.map(function (n) {
+      return '<div class="notif-item' + (n.lida ? '' : ' nao-lida') + '">' + esc(n.mensagem) + '<time>' + fmtHora(n.data_criacao) + '</time>' +
+        (n.lida ? '' : '<button class="btn btn-pequeno" type="button" data-acao="marcar-lida" data-id="' + esc(n.id) + '" style="margin-top:6px">Marcar como lida</button>') + '</div>';
+    }).join('') : '<div class="notif-vazio">Sem notificações.</div>';
+  };
+  $('#btn-sino').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var caixa = $('#notif-caixa'); caixa.hidden = !caixa.hidden; this.setAttribute('aria-expanded', String(!caixa.hidden));
+  });
+  document.addEventListener('click', function (ev) { if (!ev.target.closest('.sino')) { $('#notif-caixa').hidden = true; } });
+  $('#btn-todas-lidas').addEventListener('click', function () { executar('marcarTodasLidas'); });
+
+  /* ---------- Calendário ---------- */
+  var NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  var NOMES_DIA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  var agora = new Date();
+  var cal = { ano: agora.getFullYear(), mes: agora.getMonth(), pedidos: [] };   // mes: 0 a 11
+
+  UI.renderCalendario = function (pedidos) { if (pedidos) cal.pedidos = pedidos; desenharCalendario(); };
+
+  function desenharCalendario() {
+    $('#cal-titulo').textContent = NOMES_MES[cal.mes] + ' ' + cal.ano;
+    var grelha = $('#cal-grelha'), h = NOMES_DIA.map(function (n) { return '<div class="cal-cab">' + n + '</div>'; }).join('');
+    var offset = (new Date(cal.ano, cal.mes, 1).getDay() + 6) % 7;        // segunda = 0
+    var total = new Date(cal.ano, cal.mes + 1, 0).getDate();
+    var hoje = hojeISO(), meuId = UI.perfil ? UI.perfil.id : null;
+    for (var i = 0; i < offset; i++) h += '<div class="dia vazio-mes"></div>';
+    for (var d = 1; d <= total; d++) {
+      var dia = iso(cal.ano, cal.mes, d), semana = (offset + d - 1) % 7;
+      var doDia = cal.pedidos.filter(function (p) {
+        return p.data_inicio <= dia && dia <= p.data_fim && (p.estado === 'Aceite' || p.estado === 'Pendente');
+      });
+      var pessoas = {};
+      doDia.forEach(function (p) { if (p.estado === 'Aceite') pessoas[p.utilizador_id] = true; });
+      var n = Object.keys(pessoas).length, cheio = n >= UI.config.limiteDiario;
+      var chips = doDia.slice(0, 2).map(function (p) {
+        return '<span class="chip' + (p.estado === 'Pendente' ? ' pendente' : '') + (p.utilizador_id === meuId ? ' meu' : '') +
+          '" title="' + esc(p.nome) + ' (' + esc(p.estado) + ')">' + esc(primeiroNome(p.nome)) + '</span>';
+      }).join('');
+      if (doDia.length > 2) chips += '<span class="chip-mais">+' + (doDia.length - 2) + '</span>';
+      h += '<div class="dia' + (semana >= 5 ? ' fim-semana' : '') + (dia === hoje ? ' hoje' : '') + (cheio ? ' cheio' : '') + '">' +
+        '<div class="dia-topo"><span>' + d + '</span><span class="dia-contador">' + (cheio ? '⛔ ' : '') + (n ? n + '/' + UI.config.limiteDiario : '') + '</span></div>' + chips + '</div>';
+    }
+    grelha.innerHTML = h;
+  }
+  function mudarMes(delta) {
+    if (delta === 0) { var a = new Date(); cal.ano = a.getFullYear(); cal.mes = a.getMonth(); }
+    else { cal.mes += delta; if (cal.mes < 0) { cal.mes = 11; cal.ano--; } if (cal.mes > 11) { cal.mes = 0; cal.ano++; } }
+    desenharCalendario();
+    UI.acoes.mudouMes(cal.ano, cal.mes + 1);
+  }
+  $('#cal-anterior').addEventListener('click', function () { mudarMes(-1); });
+  $('#cal-seguinte').addEventListener('click', function () { mudarMes(1); });
+  $('#cal-hoje').addEventListener('click', function () { mudarMes(0); });
+
+  /* ════════════════════ DEMO — apagar este bloco no fim ════════════════════
+     Só corre com  ?demo=Colaborador | Chefe | Admin . Dados inventados, nada é guardado.   */
+  (function demo() {
+    var m = location.search.match(/[?&]demo=([A-Za-z]+)/);
+    if (!m) return;
+    var cargo = { colaborador: 'Colaborador', chefe: 'Chefe', admin: 'Admin' }[m[1].toLowerCase()] || 'Colaborador';
+    var y = agora.getFullYear(), mo = agora.getMonth();
+    function d(n) { return iso(y, mo, n); }
+    var dep = [{ id: 1, nome: 'Vendas', chefe_id: 2 }, { id: 2, nome: 'Recursos Humanos', chefe_id: null }];
+    var ut = [
+      { id: 1, nome: 'Administrador', email: 'admin@demo.pt', cargo: 'Admin', departamento_id: null, dias_totais_ano: 22, dias_disponiveis: 22 },
+      { id: 2, nome: 'Rui Lopes', email: 'rui@demo.pt', cargo: 'Chefe', departamento_id: 1, dias_totais_ano: 22, dias_disponiveis: 18 },
+      { id: 3, nome: 'Ana Costa', email: 'ana@demo.pt', cargo: 'Colaborador', departamento_id: 1, dias_totais_ano: 22, dias_disponiveis: 17 },
+      { id: 4, nome: 'Beatriz Silva', email: 'bea@demo.pt', cargo: 'Colaborador', departamento_id: 1, dias_totais_ano: 22, dias_disponiveis: 20 },
+      { id: 5, nome: 'Carlos Nunes', email: 'carlos@demo.pt', cargo: 'Colaborador', departamento_id: 2, dias_totais_ano: 22, dias_disponiveis: 22 }
+    ];
+    var ped = [
+      { id: 1, utilizador_id: 2, nome: 'Rui Lopes', data_inicio: d(9), data_fim: d(11), estado: 'Aceite', justificacao: 'Aprovado pelo Admin.', data_submissao: d(1) },
+      { id: 2, utilizador_id: 3, nome: 'Ana Costa', data_inicio: d(10), data_fim: d(12), estado: 'Aceite', justificacao: 'Boas férias!', data_submissao: d(2) },
+      { id: 3, utilizador_id: 4, nome: 'Beatriz Silva', data_inicio: d(10), data_fim: d(10), estado: 'Aceite', justificacao: 'Ok.', data_submissao: d(3) },
+      { id: 4, utilizador_id: 3, nome: 'Ana Costa', data_inicio: d(24), data_fim: d(28), estado: 'Pendente', justificacao: '', data_submissao: d(5) },
+      { id: 5, utilizador_id: 4, nome: 'Beatriz Silva', data_inicio: d(17), data_fim: d(19), estado: 'Pendente', justificacao: '', data_submissao: d(6) },
+      { id: 6, utilizador_id: 3, nome: 'Ana Costa', data_inicio: d(2), data_fim: d(3), estado: 'Recusado', justificacao: 'Equipa reduzida nessa semana.', data_submissao: d(1) }
+    ];
+    var pad_ = [
+      { id: 1, nome_chefe: 'Rui Lopes', nome_colaborador: 'Ana Costa', dias_ajuste: 2, justificacao: 'Projeto extra fora de horas.', estado: 'Pendente', data_pedido: new Date().toISOString() },
+      { id: 2, nome_chefe: 'Rui Lopes', nome_colaborador: 'Beatriz Silva', dias_ajuste: -1, justificacao: 'Dia de formação a descontar.', estado: 'Aceite', data_pedido: new Date().toISOString() }
+    ];
+    var nots = [
+      { id: 1, mensagem: 'Novo pedido de férias de Ana Costa.', lida: false, data_criacao: new Date().toISOString() },
+      { id: 2, mensagem: 'O teu pedido foi aceite.', lida: true, data_criacao: new Date().toISOString() }
+    ];
+    var eu = ut.filter(function (u) { return u.cargo === cargo; })[0];
+    Object.keys(UI.acoes).forEach(function (k) {
+      if (k === 'mudouMes' || k === 'mudouDepartamento' || k === 'recarregar') return;
+      UI.acoes[k] = function () { return Promise.resolve({ erro: 'Modo demonstração: nada é guardado.' }); };
+    });
+    UI.configurarPerfil(eu);
+    UI.renderSaldo({ dias_totais_ano: eu.dias_totais_ano, dias_disponiveis: eu.dias_disponiveis, dias_pendentes: 5 });
+    UI.renderMeusPedidos(ped.filter(function (p) { return p.utilizador_id === eu.id; }));
+    UI.renderPedidosEquipa(ped);
+    UI.renderMaisDiasChefe(pad_);
+    UI.renderMaisDiasAdmin(pad_);
+    UI.renderDepartamentos(dep, ut);
+    UI.renderUtilizadores(ut, dep);
+    UI.renderNotificacoes(nots);
+    UI.preencherSelectColaboradores(ut.filter(function (u) { return u.departamento_id === 1 && u.cargo === 'Colaborador'; }));
+    UI.preencherSelectDepartamentos(dep);
+    UI.preencherSelectVerComo(ut.filter(function (u) { return u.cargo !== 'Admin'; }));
+    UI.renderCalendario(ped);
+  })();
+  /* ═══════════════════════════ fim do bloco DEMO ═══════════════════════════ */
+
+})();
+</script>
+
+<!-- 🔌 O TEU FICHEIRO (continua igual). Tem de ficar DEPOIS do script da interface. -->
+<script type="module" src="./app.js"></script>
+
+</body>
+</html>
