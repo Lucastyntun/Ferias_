@@ -13,8 +13,6 @@
           if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
           document.documentElement.setAttribute('data-theme', t);
         } catch (e) {}
-        // DEMO (apagar com o ficheiro js/demo.js): ?demo=Colaborador | Chefe | Admin
-        if (/[?&]demo=/.test(location.search)) document.documentElement.classList.add('modo-demo');
       })();
     </script>
 
@@ -110,29 +108,151 @@
         
     </style>
 
-    <!-- ESTILO DA APLICAÇÃO (tudo o que aparece depois do login): cores do tema em css/app.css -->
-    <link rel="stylesheet" href="css/app.css">
+    <!-- ESTILO DA APLICAÇÃO (tudo o que aparece depois do login) -->
+    <style>
+/* ════════════════════════════════════════════════════════════════════════════
+   ESTILO DA APLICAÇÃO (tudo o que aparece DEPOIS do login)
+   O login NÃO está aqui: o CSS dele está no <style> do index.html, igual ao original.
+   Tudo o que mexe em elementos genéricos (h2, input, button...) está limitado a
+   #black-screen para nunca alterar o aspeto do login.
+   Para mudar as cores do tema: só os blocos :root logo a seguir.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ============================ TEMAS (cores) ============================ */
+:root {
+  --bg:#0b0b0c; --surface:#141416; --surface-2:#1c1c20; --border:#2b2b31;
+  --text:#f2f2f3; --muted:#9d9da6;
+  --accent:#6c8cff; --accent-text:#0b0b0c;
+  --danger:#ff6b6b; --ok:#3ecf8e; --warn:#f5b942; --neutro:#9d9da6;
+  --sombra:0 1px 2px rgba(0,0,0,.4);
+}
+:root[data-theme="light"] {
+  --bg:#f4f5f8; --surface:#ffffff; --surface-2:#eef0f4; --border:#d9dce3;
+  --text:#16171b; --muted:#5b5e68;
+  --accent:#3556d8; --accent-text:#ffffff;
+  --danger:#c0292b; --ok:#16794f; --warn:#8f5a00; --neutro:#5b5e68;
+  --sombra:0 1px 2px rgba(20,24,40,.08);
+}
+
+[hidden] { display:none !important; }
+
+/* ============================ BASE DA APLICAÇÃO ============================ */
+#black-screen { background:var(--bg); color:var(--text); font-size:15px; line-height:1.45; }
+#toasts { color:var(--text); font-size:15px; }
+
+/* :where(...) deixa estas regras "fracas" para as classes (.btn, .btn-pequeno...) as poderem sobrepor */
+:where(#black-screen) button, :where(#black-screen) input, :where(#black-screen) select, :where(#black-screen) textarea { font-size:15px; color:inherit; }
+:where(#black-screen) input, :where(#black-screen) select, :where(#black-screen) textarea { background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 11px; width:100%; }
+:where(#black-screen) textarea { resize:vertical; min-height:70px; }
+:where(#black-screen) label { display:block; font-size:13px; color:var(--muted); margin-bottom:5px; }
+:where(#black-screen) input:focus-visible, :where(#black-screen) select:focus-visible, :where(#black-screen) textarea:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+#black-screen h2 { font-size:18px; margin-bottom:14px; }
+#black-screen h3 { font-size:15px; margin:18px 0 10px; }
+.muted { color:var(--muted); font-size:13px; }
+
+.btn { padding:9px 16px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); cursor:pointer; font-weight:600; }
+.btn:hover { border-color:var(--accent); }
+.btn:focus-visible, .tab:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.btn-primario { background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+.btn-perigo { color:var(--danger); }
+.btn-pequeno { padding:5px 10px; font-size:13px; }
+.btn-ok { color:var(--ok); }
+.linha-form { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; align-items:end; margin-bottom:12px; }
+.linha-form .largo { grid-column:1 / -1; }
+.msg-erro { color:var(--danger); font-size:13px; margin-top:8px; }
+
+
+/* ============================ BARRA DO TOPO (COMUM) ============================ */
+.topbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 20px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:20; }
+.marca { font-weight:700; font-size:17px; margin-right:auto; }
+.utilizador { display:flex; align-items:center; gap:8px; }
+.etiqueta { font-size:12px; padding:2px 9px; border-radius:99px; background:var(--surface-2); border:1px solid var(--border); color:var(--muted); }
+.sino { position:relative; }
+.sino-contador { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:99px; background:var(--danger); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+.notif-caixa { position:absolute; right:0; top:46px; width:min(360px, 92vw); max-height:420px; overflow:auto; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.35); z-index:30; }
+.notif-caixa header { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border); font-weight:600; }
+.notif-item { padding:10px 14px; border-bottom:1px solid var(--border); font-size:14px; }
+.notif-item.nao-lida { background:color-mix(in srgb, var(--accent) 10%, transparent); font-weight:600; }
+.notif-item time { display:block; font-weight:400; color:var(--muted); font-size:12px; margin-top:2px; }
+.notif-vazio { padding:18px 14px; color:var(--muted); font-size:14px; }
+
+.faixa-ver-como { background:color-mix(in srgb, var(--warn) 20%, var(--surface)); border-bottom:1px solid var(--warn); padding:9px 20px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; font-size:14px; }
+
+/* ============================ SEPARADORES (COMUM) ============================ */
+.menu { display:flex; gap:6px; padding:10px 20px 0; overflow-x:auto; border-bottom:1px solid var(--border); background:var(--surface); align-items:flex-end; }
+.tab { padding:10px 16px; border:none; background:none; border-bottom:3px solid transparent; cursor:pointer; color:var(--muted); font-weight:600; white-space:nowrap; }
+.tab[aria-selected="true"] { color:var(--text); border-bottom-color:var(--accent); }
+.ver-como { margin-left:auto; display:flex; gap:8px; align-items:center; padding-bottom:6px; }
+.ver-como select { width:190px; padding:6px 9px; }
+
+#black-screen main { max-width:1180px; margin:0 auto; padding:22px 20px 60px; }
+.painel { display:none; }
+.painel.ativo { display:block; }
+.cartao { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; margin-bottom:18px; box-shadow:var(--sombra); }
+
+/* ============================ TABELAS E ESTADOS (COMUM) ============================ */
+.tabela-wrap { overflow-x:auto; }
+#black-screen table { width:100%; border-collapse:collapse; font-size:14px; }
+#black-screen th, #black-screen td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+#black-screen th { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; white-space:nowrap; }
+#black-screen td input, #black-screen td select { padding:6px 8px; min-width:90px; }
+td .btn + .btn { margin-left:6px; }
+.vazio { color:var(--muted); padding:16px 4px; font-size:14px; }
+
+.badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:12px; font-weight:700; border:1px solid currentColor; }
+.e-pendente { color:var(--warn); } .e-aceite { color:var(--ok); } .e-recusado { color:var(--danger); } .e-cancelado { color:var(--neutro); }
+
+/* ============================ COLABORADOR: saldo ============================ */
+.saldo { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; }
+.saldo div { background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+.saldo strong { display:block; font-size:28px; line-height:1.1; }
+.saldo span { font-size:13px; color:var(--muted); }
+
+/* ============================ CALENDÁRIO (COMUM) ============================ */
+.cal-topo { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.cal-topo h2 { margin:0 auto 0 0; }
+.cal-topo select { width:auto; min-width:170px; }
+.cal-titulo { font-size:20px; font-weight:700; margin-bottom:10px; }
+.cal-grelha { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:5px; }
+.cal-cab { text-align:center; font-size:12px; font-weight:700; color:var(--muted); padding:6px 0; text-transform:uppercase; }
+.dia { min-height:92px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:6px 7px; display:flex; flex-direction:column; gap:4px; overflow:hidden; }
+.dia.vazio-mes { background:transparent; border-color:transparent; }
+.dia.fim-semana { opacity:.6; }
+.dia.hoje { outline:2px solid var(--accent); }
+.dia.cheio { background:color-mix(in srgb, var(--danger) 16%, var(--surface-2)); border-color:var(--danger); opacity:1; }
+.dia-topo { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; }
+.dia-contador { font-size:11px; font-weight:700; color:var(--muted); }
+.dia.cheio .dia-contador { color:var(--danger); }
+.chip { font-size:11.5px; padding:1px 6px; border-radius:6px; background:color-mix(in srgb, var(--ok) 22%, transparent); border:1px solid var(--ok); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chip.pendente { background:transparent; border-style:dashed; border-color:var(--warn); }
+.chip.meu { box-shadow:0 0 0 2px var(--accent); }
+.chip-mais { font-size:11px; color:var(--muted); }
+.legenda { display:flex; gap:16px; flex-wrap:wrap; margin-top:14px; font-size:13px; color:var(--muted); align-items:center; }
+.legenda .chip { display:inline-block; }
+
+/* ============================ TELEMÓVEL ============================ */
+@media (max-width:720px) {
+  #black-screen main { padding:16px 12px 50px; }
+  .topbar, .menu, .faixa-ver-como { padding-left:12px; padding-right:12px; }
+  .dia { min-height:66px; padding:4px; }
+  .chip { font-size:10px; padding:0 4px; }
+  .cal-grelha { gap:3px; }
+  .ver-como { margin-left:0; }
+}
+
+/* ============================ AVISOS (toasts) ============================ */
+#toasts { position:fixed; right:16px; bottom:16px; display:flex; flex-direction:column; gap:8px; z-index:50; max-width:min(380px, 92vw); }
+.toast { padding:11px 14px; border-radius:10px; background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--ok); box-shadow:0 8px 24px rgba(0,0,0,.3); font-size:14px; }
+.toast.erro { border-left-color:var(--danger); }
+
+    </style>
 </head>
 
 <body>
 
 <!--
-╔══════════════════════════════════════════════════════════════════════════════╗
-║  MAPA DESTE FICHEIRO  — quem estuda o quê                                    ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-  index.html            esta página (login + painéis)           ← estrutura (HTML)
-  css/app.css           cores e aspeto da aplicação (não do login)
-  js/ui-comum.js        parte COMUM: tema, separadores, notificações, calendário   (Lucas + Felipe)
-  js/ui-colaborador.js  painel "As minhas férias"                                  (Rodrigo)
-  js/ui-chefe.js        painéis "Pedidos de férias" e "Pedir mais dias"            (Tomás)
-  js/ui-admin.js        painéis do Admin + "Ver como"                              (Miguel)
-  app.js                liga a página ao Supabase (login, ler e guardar dados)     (Felipe)
-  js/demo.js            modo demonstração (?demo=Admin) — pode ser apagado
-  Base de dados (SQL, regras, triggers)                                            (Lucas)
-
-  Este ficheiro (index.html) está dividido em blocos marcados com
-  ═══ PARTE ... ═══ . Cada pessoa estuda o bloco do seu cargo.
-
+  Este ficheiro (index.html) tem o login original, os painéis de cada cargo,
+  o estilo e o JavaScript da interface. O app.js liga a página ao Supabase.
   IDs que o app.js usa e NÃO se podem mudar sem mudar lá também:
   login-screen, black-screen, username, password, btn-login, btn-logout, error.
 -->
@@ -164,7 +284,7 @@
 <!-- ═════════════════ APLICAÇÃO (aparece depois do login) ═════════════════ -->
 <div id="black-screen">
 
-<!-- ═══════════ PARTE COMUM: topo, aviso "ver como", separadores ═══════════ -->
+<!-- ═══════════ topo, aviso "ver como", separadores ═══════════ -->
   <header class="topbar">
     <div class="marca">🗓️ Gestão de Férias</div>
 
@@ -227,8 +347,8 @@
 
   <main>
 
-<!-- ═══════════ PARTE DO RODRIGO — COLABORADOR ═══════════
-     Painel "As minhas férias". O Chefe também o usa. JS: js/ui-colaborador.js -->
+<!-- ═══════════ COLABORADOR ═══════════
+     Painel "As minhas férias". O Chefe também o usa. -->
     <section class="painel" id="painel-ferias">
 
       <div class="cartao">
@@ -293,8 +413,8 @@
       </div>
     </section>
 
-<!-- ═══════════ PARTE DO TOMÁS — CHEFE ═══════════
-     "Pedidos de férias" (o Admin também o usa) e "Pedir mais dias". JS: js/ui-chefe.js -->
+<!-- ═══════════ CHEFE ═══════════
+     "Pedidos de férias" (o Admin também o usa) e "Pedir mais dias". -->
     <section class="painel" id="painel-equipa">
       <div class="cartao">
         <div class="cal-topo">
@@ -370,7 +490,7 @@
       </div>
     </section>
 
-<!-- ═══════════ PARTE COMUM: calendário (todos os cargos) ═══════════ JS: js/ui-comum.js -->
+<!-- ═══════════ calendário (todos os cargos) ═══════════ -->
     <section class="painel" id="painel-calendario">
       <div class="cartao">
         <div class="cal-topo">
@@ -408,8 +528,8 @@
       </div>
     </section>
 
-<!-- ═══════════ PARTE DO MIGUEL — ADMIN ═══════════
-     "Pedidos de mais dias", "Departamentos", "Utilizadores". JS: js/ui-admin.js -->
+<!-- ═══════════ ADMIN ═══════════
+     "Pedidos de mais dias", "Departamentos", "Utilizadores". -->
     <section class="painel" id="painel-aprovar-dias">
       <div class="cartao">
         <h2>Pedidos de alteração de dias</h2>
@@ -511,13 +631,520 @@
 
 <div id="toasts" aria-live="polite"></div>
 
-<!-- SCRIPTS — a ordem importa: primeiro a interface, depois o app.js, por fim a demo -->
-<script type="module" src="./js/ui-comum.js"></script>
-<script type="module" src="./js/ui-colaborador.js"></script>
-<script type="module" src="./js/ui-chefe.js"></script>
-<script type="module" src="./js/ui-admin.js"></script>
+<!-- SCRIPTS — a ordem importa: primeiro a interface, depois o app.js -->
+<script type="module">
+/* ════════════════════════════════════════════════════════════════════════════
+   INTERFACE — COMUM
+   ════════════════════════════════════════════════════════════════════════════
+   Aqui está o que é partilhado pelos 3 cargos:
+     • o objeto global  UI  e as ajudas (UI.h) que as outras partes usam
+     • avisos (toast), tema claro/escuro, separadores, perfil
+     • notificações (o sino) e o calendário
+     • a função  executar()  que corre uma ação do app.js e mostra o resultado
+
+   Esta parte NÃO fala com o Supabase. Quem busca e guarda dados é o app.js,
+   que chama as funções  UI.render...  e define as  UI.acoes.*
+
+   Ordem dos <script> no index.html (importa!):
+     comum → colaborador → chefe → admin → app.js
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const UI = {};
+window.UI = UI;
+
+// Tem de ser IGUAL ao limite que está no trigger da base de dados (sql/02).
+UI.config = { limiteDiario: 3 };
+UI.perfil = null;     // a linha de "utilizadores" de quem está a ser mostrado
+
+/* ---------- Pequenas ajudas (usadas por todas as partes) ---------- */
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+// Protege contra XSS: transforma < > & " ' em texto inofensivo antes de pôr dados em innerHTML.
+function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ESC[c]); }
+function $(s, r) { return (r || document).querySelector(s); }
+function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+function pad(n) { return String(n).padStart(2, '0'); }
+function iso(ano, mes0, dia) { return ano + '-' + pad(mes0 + 1) + '-' + pad(dia); }   // mes0: 0 a 11
+function hojeISO() { const d = new Date(); return iso(d.getFullYear(), d.getMonth(), d.getDate()); }
+function fmt(s) { if (!s) return '—'; const p = String(s).slice(0, 10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+function fmtHora(ts) { if (!ts) return ''; const d = new Date(ts); return isNaN(d) ? '' : d.toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' }); }
+function parte(s) { return [+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)]; }
+function primeiroNome(n) { return String(n || '').trim().split(' ')[0]; }
+
+// Etiqueta colorida do estado (Pendente, Aceite...)
+function badge(estado) {
+  const cls = String(estado || '').toLowerCase().replace(/[^a-z]/g, '');
+  return '<span class="badge e-' + cls + '">' + esc(estado) + '</span>';
+}
+// Mostra a tabela ou a frase "não há nada" conforme haja linhas
+function mostrarVazio(idTabela, idVazio, n) { $(idVazio).hidden = n > 0; $(idTabela).closest('table').hidden = n === 0; }
+function mostrarErro(id, texto) { const e = $(id); e.textContent = texto || ''; e.hidden = !texto; }
+// Gera <option>...</option> a partir de uma lista
+function opcoes(lista, valor, texto, vazio) {
+  const h = vazio ? '<option value="">' + esc(vazio) + '</option>' : '';
+  return h + lista.map((x) => '<option value="' + esc(x[valor]) + '">' + esc(typeof texto === 'function' ? texto(x) : x[texto]) + '</option>').join('');
+}
+
+// Dias úteis (segunda a sexta) entre duas datas 'AAAA-MM-DD', inclusive.
+// Só serve para PRÉ-VISUALIZAR: quem decide de verdade é a base de dados.
+UI.diasUteis = function (a, b) {
+  if (!a || !b || b < a) return 0;
+  const p = parte(a), q = parte(b);
+  const d = new Date(p[0], p[1], p[2]), fim = new Date(q[0], q[1], q[2]);
+  let n = 0, guarda = 0;
+  while (d <= fim && guarda++ < 800) { const w = d.getDay(); if (w !== 0 && w !== 6) n++; d.setDate(d.getDate() + 1); }
+  return n;
+};
+
+UI.toast = function (texto, tipo) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (tipo === 'erro' ? ' erro' : '');
+  t.textContent = texto;
+  $('#toasts').appendChild(t);
+  setTimeout(() => t.remove(), tipo === 'erro' ? 7000 : 3500);
+};
+
+/* ---------- Ações: o app.js define o que cada uma faz ---------- */
+const NOMES_ACOES = ['criarPedido', 'cancelarPedido', 'decidirPedido', 'criarPedidoMaisDias', 'decidirMaisDias',
+  'criarDepartamento', 'definirChefe', 'apagarDepartamento', 'criarUtilizador', 'atualizarUtilizador',
+  'apagarUtilizador', 'verComo', 'sairVerComo', 'marcarNotificacaoLida', 'marcarTodasLidas'];
+UI.acoes = {};
+NOMES_ACOES.forEach((n) => {
+  UI.acoes[n] = () => { console.warn('[UI] Ainda não ligado: UI.acoes.' + n); return Promise.resolve({ erro: 'Ainda não ligado: ' + n }); };
+});
+UI.acoes.mudouMes = () => {};            // opcional
+UI.acoes.mudouDepartamento = () => {};   // opcional
+UI.acoes.recarregar = () => Promise.resolve();
+
+// Corre uma ação do app.js, mostra o aviso e, se correu bem, recarrega os dados.
+function executar(nome, ...args) {
+  return Promise.resolve()
+    .then(() => UI.acoes[nome](...args))
+    .then((r) => {
+      if (r && r.erro) { UI.toast(r.erro, 'erro'); return r; }
+      UI.toast('Feito.', 'ok');
+      return Promise.resolve(UI.acoes.recarregar()).then(() => r || { ok: true });
+    })
+    .catch((e) => { UI.toast(e && e.message ? e.message : 'Erro inesperado.', 'erro'); return { erro: String(e) }; });
+}
+
+// As outras partes (colaborador, chefe, admin) vão buscar as ajudas aqui.
+UI.h = { esc, $, $$, pad, iso, hojeISO, fmt, fmtHora, parte, primeiroNome, badge, mostrarVazio, mostrarErro, opcoes, executar };
+
+// Cada parte regista aqui o que deve limpar no logout
+UI.aoLimpar = [];
+
+/* ---------- Tema claro / escuro (só a aplicação; o login é sempre escuro) ---------- */
+function aplicarTema(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('ferias-tema', t); } catch (e) {}
+  $('#btn-tema').textContent = t === 'dark' ? '☀️' : '🌙';
+}
+function alternarTema() { aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); }
+$('#btn-tema').addEventListener('click', alternarTema);
+aplicarTema(document.documentElement.getAttribute('data-theme'));
+
+/* ---------- Login: Enter faz clique em ENTRAR ---------- */
+['#username', '#password'].forEach((s) => {
+  $(s).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#btn-login').click(); } });
+});
+
+/* ---------- Separadores ---------- */
+function mostrarPainel(id) {
+  $$('.painel').forEach((p) => p.classList.toggle('ativo', p.id === id));
+  $$('#menu .tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.painel === id)));
+  if (id === 'painel-calendario') desenharCalendario();
+}
+UI.mostrarPainel = mostrarPainel;
+$$('#menu .tab').forEach((b) => b.addEventListener('click', () => mostrarPainel(b.dataset.painel)));
+
+/* ---------- Perfil: mostra só o que o cargo pode ver ---------- */
+// perfil = { id, nome, email, cargo, departamento_id, dias_totais_ano, dias_disponiveis }
+UI.configurarPerfil = function (perfil, opcoesPerfil) {
+  const o = opcoesPerfil || {};
+  UI.perfil = perfil;
+  const cargo = perfil.cargo;
+  $('#user-nome').textContent = perfil.nome || perfil.email || '';
+  $('#user-cargo').textContent = cargo || '';
+  // data-roles="Admin Chefe" = só esses cargos veem o elemento
+  $$('[data-roles]').forEach((e) => { e.hidden = e.dataset.roles.split(' ').indexOf(cargo) === -1; });
+  $('#banner-ver-como').hidden = !o.verComo;
+  if (o.verComo) { $('#ver-como-nome').textContent = (perfil.nome || '') + ' (' + cargo + ')'; $('.ver-como').hidden = true; }
+  mostrarPainel(cargo === 'Colaborador' ? 'painel-ferias' : 'painel-equipa');
+  if (['Admin', 'Chefe', 'Colaborador'].indexOf(cargo) === -1) {
+    UI.toast('Cargo inválido na base de dados: "' + cargo + '". Tem de ser Admin, Chefe ou Colaborador.', 'erro');
+  }
+};
+
+UI.limpar = function () {
+  UI.perfil = null;
+  $('#user-nome').textContent = ''; $('#user-cargo').textContent = '';
+  $$('.painel').forEach((p) => p.classList.remove('ativo'));
+  $('#banner-ver-como').hidden = true; $('#notif-caixa').hidden = true;
+  ['#notif-lista', '#cal-grelha'].forEach((s) => { $(s).innerHTML = ''; });
+  cal.pedidos = [];
+  $('#sino-contador').hidden = true;
+  UI.aoLimpar.forEach((f) => f());
+};
+
+/* ---------- Notificações (o sino) ---------- */
+// lista = [{ id, mensagem, lida, data_criacao }]
+UI.renderNotificacoes = function (lista) {
+  const nao = lista.filter((n) => !n.lida).length;
+  const c = $('#sino-contador'); c.textContent = nao > 9 ? '9+' : nao; c.hidden = nao === 0;
+  $('#notif-lista').innerHTML = lista.length ? lista.map((n) =>
+    '<div class="notif-item' + (n.lida ? '' : ' nao-lida') + '">' + esc(n.mensagem) + '<time>' + fmtHora(n.data_criacao) + '</time>' +
+    (n.lida ? '' : '<button class="btn btn-pequeno" type="button" data-acao="marcar-lida" data-id="' + esc(n.id) + '" style="margin-top:6px">Marcar como lida</button>') + '</div>'
+  ).join('') : '<div class="notif-vazio">Sem notificações.</div>';
+};
+$('#btn-sino').addEventListener('click', function (ev) {
+  ev.stopPropagation();
+  const caixa = $('#notif-caixa'); caixa.hidden = !caixa.hidden; this.setAttribute('aria-expanded', String(!caixa.hidden));
+});
+document.addEventListener('click', (ev) => {
+  if (!ev.target.closest('.sino')) $('#notif-caixa').hidden = true;
+  const b = ev.target.closest('button[data-acao="marcar-lida"]');
+  if (b) executar('marcarNotificacaoLida', Number(b.dataset.id));
+});
+$('#btn-todas-lidas').addEventListener('click', () => executar('marcarTodasLidas'));
+
+/* ---------- Calendário ---------- */
+const NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const NOMES_DIA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const agora = new Date();
+const cal = { ano: agora.getFullYear(), mes: agora.getMonth(), pedidos: [] };   // mes: 0 a 11
+
+// pedidos = [{ id, utilizador_id, nome, data_inicio, data_fim, estado }]
+UI.renderCalendario = function (pedidos) { if (pedidos) cal.pedidos = pedidos; desenharCalendario(); };
+
+function desenharCalendario() {
+  $('#cal-titulo').textContent = NOMES_MES[cal.mes] + ' ' + cal.ano;
+  let h = NOMES_DIA.map((n) => '<div class="cal-cab">' + n + '</div>').join('');
+  const offset = (new Date(cal.ano, cal.mes, 1).getDay() + 6) % 7;        // segunda = 0
+  const total = new Date(cal.ano, cal.mes + 1, 0).getDate();
+  const hoje = hojeISO(), meuId = UI.perfil ? UI.perfil.id : null;
+  for (let i = 0; i < offset; i++) h += '<div class="dia vazio-mes"></div>';
+  for (let d = 1; d <= total; d++) {
+    const dia = iso(cal.ano, cal.mes, d), semana = (offset + d - 1) % 7;
+    // pedidos Aceites ou Pendentes que cobrem este dia
+    const doDia = cal.pedidos.filter((p) => p.data_inicio <= dia && dia <= p.data_fim && (p.estado === 'Aceite' || p.estado === 'Pendente'));
+    // quantas pessoas DIFERENTES têm férias Aceites neste dia
+    const pessoas = {};
+    doDia.forEach((p) => { if (p.estado === 'Aceite') pessoas[p.utilizador_id] = true; });
+    const n = Object.keys(pessoas).length, cheio = n >= UI.config.limiteDiario;
+    let chips = doDia.slice(0, 2).map((p) =>
+      '<span class="chip' + (p.estado === 'Pendente' ? ' pendente' : '') + (p.utilizador_id === meuId ? ' meu' : '') +
+      '" title="' + esc(p.nome) + ' (' + esc(p.estado) + ')">' + esc(primeiroNome(p.nome)) + '</span>').join('');
+    if (doDia.length > 2) chips += '<span class="chip-mais">+' + (doDia.length - 2) + '</span>';
+    h += '<div class="dia' + (semana >= 5 ? ' fim-semana' : '') + (dia === hoje ? ' hoje' : '') + (cheio ? ' cheio' : '') + '">' +
+      '<div class="dia-topo"><span>' + d + '</span><span class="dia-contador">' + (cheio ? '⛔ ' : '') + (n ? n + '/' + UI.config.limiteDiario : '') + '</span></div>' + chips + '</div>';
+  }
+  $('#cal-grelha').innerHTML = h;
+}
+function mudarMes(delta) {
+  if (delta === 0) { const a = new Date(); cal.ano = a.getFullYear(); cal.mes = a.getMonth(); }
+  else { cal.mes += delta; if (cal.mes < 0) { cal.mes = 11; cal.ano--; } if (cal.mes > 11) { cal.mes = 0; cal.ano++; } }
+  desenharCalendario();
+  UI.acoes.mudouMes(cal.ano, cal.mes + 1);
+}
+$('#cal-anterior').addEventListener('click', () => mudarMes(-1));
+$('#cal-seguinte').addEventListener('click', () => mudarMes(1));
+$('#cal-hoje').addEventListener('click', () => mudarMes(0));
+$('#cal-departamento').addEventListener('change', function () { UI.acoes.mudouDepartamento(Number(this.value) || null); });
+
+</script>
+
+<script type="module">
+/* ════════════════════════════════════════════════════════════════════════════
+   INTERFACE — COLABORADOR
+   ════════════════════════════════════════════════════════════════════════════
+   O painel "As minhas férias" (id painel-ferias no index.html):
+     • o saldo de dias
+     • o formulário "Novo pedido de férias"
+     • a lista "Os meus pedidos" com o botão Cancelar
+   O Chefe também usa este painel (também tem as suas férias).
+
+   Funções que o app.js chama:   UI.renderSaldo(...)   UI.renderMeusPedidos(...)
+   Ações que o app.js define:    UI.acoes.criarPedido   UI.acoes.cancelarPedido
+   ════════════════════════════════════════════════════════════════════════════ */
+const UI = window.UI;
+const { $, esc, fmt, hojeISO, badge, mostrarVazio, mostrarErro, executar } = UI.h;
+
+/* ---------- Saldo ---------- */
+// s = { dias_totais_ano, dias_disponiveis, dias_pendentes }
+UI.renderSaldo = function (s) {
+  $('#saldo-totais').textContent = s.dias_totais_ano != null ? s.dias_totais_ano : '–';
+  $('#saldo-disponiveis').textContent = s.dias_disponiveis != null ? s.dias_disponiveis : '–';
+  $('#saldo-pendentes').textContent = s.dias_pendentes != null ? s.dias_pendentes : '–';
+  if (UI.perfil) { UI.perfil.dias_totais_ano = s.dias_totais_ano; UI.perfil.dias_disponiveis = s.dias_disponiveis; }
+  atualizarPrevisao();
+};
+
+/* ---------- Lista "Os meus pedidos" ---------- */
+// lista = [{ id, data_inicio, data_fim, estado, justificacao, data_submissao }]
+UI.renderMeusPedidos = function (lista) {
+  $('#tab-meus-pedidos').innerHTML = lista.map((p) =>
+    '<tr><td>' + fmt(p.data_inicio) + '</td><td>' + fmt(p.data_fim) + '</td><td>' + UI.diasUteis(p.data_inicio, p.data_fim) + '</td>' +
+    '<td>' + badge(p.estado) + '</td><td>' + esc(p.justificacao || '—') + '</td>' +
+    '<td>' + (p.estado === 'Pendente' ? '<button class="btn btn-pequeno btn-perigo" type="button" data-acao="cancelar-pedido" data-id="' + esc(p.id) + '">Cancelar</button>' : '') + '</td></tr>'
+  ).join('');
+  mostrarVazio('#tab-meus-pedidos', '#vazio-meus-pedidos', lista.length);
+};
+
+/* ---------- Formulário de novo pedido ---------- */
+// Mostra "5 dia(s) útil(eis)..." enquanto a pessoa escolhe as datas
+function atualizarPrevisao() {
+  const a = $('#pedido-inicio').value, b = $('#pedido-fim').value, el = $('#pedido-previsao');
+  if (!a || !b) { el.textContent = ''; return; }
+  if (b < a) { el.textContent = 'A data de fim tem de ser igual ou depois da data de início.'; return; }
+  let t = UI.diasUteis(a, b) + ' dia(s) útil(eis) neste pedido.';
+  if (UI.perfil && UI.perfil.dias_disponiveis != null) t += ' Tens ' + UI.perfil.dias_disponiveis + ' disponíveis.';
+  el.textContent = t;
+}
+$('#pedido-inicio').addEventListener('input', atualizarPrevisao);
+$('#pedido-fim').addEventListener('input', atualizarPrevisao);
+$('#pedido-inicio').min = hojeISO();   // o calendário do browser não deixa escolher o passado
+$('#pedido-fim').min = hojeISO();
+
+$('#form-pedido').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const a = $('#pedido-inicio').value, b = $('#pedido-fim').value;
+  // Estas verificações só ajudam. A base de dados repete-as (é ela que manda).
+  if (!a || !b) return mostrarErro('#pedido-erro', 'Escolhe a data de início e a de fim.');
+  if (b < a) return mostrarErro('#pedido-erro', 'A data de fim tem de ser igual ou depois da data de início.');
+  if (a < hojeISO()) return mostrarErro('#pedido-erro', 'Não podes pedir férias em datas que já passaram.');
+  if (UI.diasUteis(a, b) === 0) return mostrarErro('#pedido-erro', 'O período escolhido não tem dias úteis.');
+  mostrarErro('#pedido-erro', '');
+  executar('criarPedido', { data_inicio: a, data_fim: b }).then((r) => {
+    if (r && r.erro) mostrarErro('#pedido-erro', r.erro);
+    else { $('#form-pedido').reset(); $('#pedido-previsao').textContent = ''; }
+  });
+});
+
+/* ---------- Botão Cancelar (um só "ouvinte" para a tabela toda) ---------- */
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('button[data-acao="cancelar-pedido"]');
+  if (b && confirm('Cancelar este pedido de férias?')) executar('cancelarPedido', Number(b.dataset.id));
+});
+
+UI.aoLimpar.push(() => { $('#tab-meus-pedidos').innerHTML = ''; });
+
+</script>
+
+<script type="module">
+/* ════════════════════════════════════════════════════════════════════════════
+   INTERFACE — CHEFE
+   ════════════════════════════════════════════════════════════════════════════
+   Dois painéis (ids no index.html):
+     • painel-equipa     "Pedidos de férias da equipa": aceitar / recusar
+                         (o Admin também usa este painel, mas vê todos os departamentos)
+     • painel-mais-dias  "Pedir mais dias": o chefe pede mais (ou menos) dias para um colaborador
+
+   Funções que o app.js chama:   UI.renderPedidosEquipa   UI.renderMaisDiasChefe
+                                 UI.preencherSelectColaboradores
+   Ações que o app.js define:    UI.acoes.decidirPedido   UI.acoes.criarPedidoMaisDias
+   ════════════════════════════════════════════════════════════════════════════ */
+const UI = window.UI;
+const { $, esc, fmt, fmtHora, badge, mostrarVazio, mostrarErro, opcoes, executar } = UI.h;
+
+/* ---------- Pedidos da equipa ---------- */
+let ultimaEquipa = [];
+
+// lista = [{ id, utilizador_id, nome, data_inicio, data_fim, estado, justificacao, data_submissao }]
+UI.renderPedidosEquipa = function (lista) {
+  if (lista) ultimaEquipa = lista;
+  const f = $('#filtro-estado').value;       // o filtro "Pendente / Aceite..." é feito aqui, sem ir à base de dados
+  const vis = ultimaEquipa.filter((p) => !f || p.estado === f);
+  $('#tab-equipa').innerHTML = vis.map((p) => {
+    const decisao = p.estado === 'Pendente'
+      ? '<button class="btn btn-pequeno btn-ok" type="button" data-acao="decidir-pedido" data-estado="Aceite" data-id="' + esc(p.id) + '">Aceitar</button>' +
+        '<button class="btn btn-pequeno btn-perigo" type="button" data-acao="decidir-pedido" data-estado="Recusado" data-id="' + esc(p.id) + '">Recusar</button>'
+      : '';
+    const just = p.estado === 'Pendente'
+      ? '<input type="text" id="just-' + esc(p.id) + '" placeholder="Justificação (obrigatória)" maxlength="300" aria-label="Justificação">'
+      : esc(p.justificacao || '—');
+    return '<tr><td>' + esc(p.nome) + '</td><td>' + fmt(p.data_inicio) + '</td><td>' + fmt(p.data_fim) + '</td><td>' + UI.diasUteis(p.data_inicio, p.data_fim) + '</td>' +
+      '<td>' + badge(p.estado) + '</td><td>' + just + '</td><td>' + decisao + '</td></tr>';
+  }).join('');
+  mostrarVazio('#tab-equipa', '#vazio-equipa', vis.length);
+};
+$('#filtro-estado').addEventListener('change', () => UI.renderPedidosEquipa());
+
+// Aceitar / Recusar: a justificação é obrigatória (está assim no ER)
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('button[data-acao="decidir-pedido"]');
+  if (!b) return;
+  const id = Number(b.dataset.id);
+  const campo = $('#just-' + id), just = campo ? campo.value.trim() : '';
+  if (!just) { UI.toast('Escreve a justificação antes de decidir.', 'erro'); if (campo) campo.focus(); return; }
+  executar('decidirPedido', id, b.dataset.estado, just);
+});
+
+/* ---------- Pedir mais dias ---------- */
+// lista = [{ id, nome, ... }]  → os colaboradores do departamento do chefe
+UI.preencherSelectColaboradores = function (lista) { $('#pad-colaborador').innerHTML = opcoes(lista, 'id', 'nome'); };
+
+// lista = [{ id, nome_colaborador, dias_ajuste, justificacao, estado, data_pedido }]
+UI.renderMaisDiasChefe = function (lista) {
+  $('#tab-mais-dias-chefe').innerHTML = lista.map((p) =>
+    '<tr><td>' + esc(p.nome_colaborador) + '</td><td>' + (p.dias_ajuste > 0 ? '+' : '') + esc(p.dias_ajuste) + '</td><td>' + esc(p.justificacao) +
+    '</td><td>' + fmtHora(p.data_pedido) + '</td><td>' + badge(p.estado) + '</td></tr>'
+  ).join('');
+  mostrarVazio('#tab-mais-dias-chefe', '#vazio-mais-dias-chefe', lista.length);
+};
+
+$('#form-mais-dias').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const col = Number($('#pad-colaborador').value), dias = parseInt($('#pad-dias').value, 10), just = $('#pad-justificacao').value.trim();
+  if (!col) return mostrarErro('#pad-erro', 'Escolhe um colaborador.');
+  if (!dias) return mostrarErro('#pad-erro', 'Indica um número de dias diferente de zero.');
+  if (!just) return mostrarErro('#pad-erro', 'A justificação é obrigatória.');
+  mostrarErro('#pad-erro', '');
+  executar('criarPedidoMaisDias', { colaborador_id: col, dias_ajuste: dias, justificacao: just }).then((r) => {
+    if (r && r.erro) mostrarErro('#pad-erro', r.erro); else $('#form-mais-dias').reset();
+  });
+});
+
+UI.aoLimpar.push(() => {
+  ultimaEquipa = [];
+  ['#tab-equipa', '#tab-mais-dias-chefe'].forEach((s) => { $(s).innerHTML = ''; });
+});
+
+</script>
+
+<script type="module">
+/* ════════════════════════════════════════════════════════════════════════════
+   INTERFACE — ADMIN
+   ════════════════════════════════════════════════════════════════════════════
+   Painéis só do Admin (ids no index.html):
+     • painel-aprovar-dias   aceitar / recusar os pedidos de mais dias dos chefes
+     • painel-departamentos  criar departamentos, escolher o chefe, apagar
+     • painel-utilizadores   criar utilizadores, mudar departamento / dias por ano, apagar
+     • "Ver como"            (no menu) o Admin vê a aplicação como outra pessoa
+
+   Funções que o app.js chama:   UI.renderMaisDiasAdmin   UI.renderDepartamentos
+                                 UI.renderUtilizadores    UI.preencherSelectDepartamentos
+                                 UI.preencherSelectVerComo
+   Ações que o app.js define:    decidirMaisDias, criarDepartamento, definirChefe,
+                                 apagarDepartamento, criarUtilizador, atualizarUtilizador,
+                                 apagarUtilizador, verComo, sairVerComo
+   ════════════════════════════════════════════════════════════════════════════ */
+const UI = window.UI;
+const { $, esc, fmtHora, badge, mostrarVazio, mostrarErro, opcoes, executar } = UI.h;
+
+/* ---------- Pedidos de mais dias ---------- */
+// lista = [{ id, nome_chefe, nome_colaborador, dias_ajuste, justificacao, estado, data_pedido }]
+UI.renderMaisDiasAdmin = function (lista) {
+  $('#tab-mais-dias-admin').innerHTML = lista.map((p) => {
+    const dec = p.estado === 'Pendente'
+      ? '<button class="btn btn-pequeno btn-ok" type="button" data-acao="decidir-mais-dias" data-estado="Aceite" data-id="' + esc(p.id) + '">Aceitar</button>' +
+        '<button class="btn btn-pequeno btn-perigo" type="button" data-acao="decidir-mais-dias" data-estado="Recusado" data-id="' + esc(p.id) + '">Recusar</button>' : '';
+    return '<tr><td>' + esc(p.nome_chefe) + '</td><td>' + esc(p.nome_colaborador) + '</td><td>' + (p.dias_ajuste > 0 ? '+' : '') + esc(p.dias_ajuste) + '</td><td>' + esc(p.justificacao) +
+      '</td><td>' + fmtHora(p.data_pedido) + '</td><td>' + badge(p.estado) + '</td><td>' + dec + '</td></tr>';
+  }).join('');
+  mostrarVazio('#tab-mais-dias-admin', '#vazio-mais-dias-admin', lista.length);
+};
+
+/* ---------- Departamentos ---------- */
+// deps = [{ id, nome, chefe_id }]   utilizadores = [{ id, nome, departamento_id, ... }]
+UI.renderDepartamentos = function (deps, utilizadores) {
+  $('#tab-departamentos').innerHTML = deps.map((d) => {
+    const membros = utilizadores.filter((u) => u.departamento_id === d.id);
+    const sel = '<select data-acao="mudar-chefe" data-id="' + esc(d.id) + '" aria-label="Chefe de ' + esc(d.nome) + '">' +
+      '<option value="">— sem chefe —</option>' +
+      membros.map((u) => '<option value="' + esc(u.id) + '"' + (u.id === d.chefe_id ? ' selected' : '') + '>' + esc(u.nome) + '</option>').join('') + '</select>';
+    return '<tr><td>' + esc(d.nome) + '</td><td>' + sel + '</td><td>' + membros.length +
+      '</td><td><button class="btn btn-pequeno btn-perigo" type="button" data-acao="apagar-departamento" data-id="' + esc(d.id) + '">Apagar</button></td></tr>';
+  }).join('');
+  mostrarVazio('#tab-departamentos', '#vazio-departamentos', deps.length);
+};
+
+$('#form-departamento').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const nome = $('#dep-nome').value.trim();
+  if (!nome) return UI.toast('Escreve o nome do departamento.', 'erro');
+  executar('criarDepartamento', nome).then((r) => { if (!(r && r.erro)) $('#form-departamento').reset(); });
+});
+
+// Preenche os selects de departamento (calendário do Admin e formulário "Criar utilizador")
+UI.preencherSelectDepartamentos = function (lista) {
+  const atual = $('#cal-departamento').value;      // guarda a escolha para não "saltar" ao recarregar
+  $('#cal-departamento').innerHTML = opcoes(lista, 'id', 'nome');
+  if (atual) $('#cal-departamento').value = atual;
+  $('#ut-departamento').innerHTML = opcoes(lista, 'id', 'nome', '— sem departamento —');
+};
+
+/* ---------- Utilizadores ---------- */
+// lista = [{ id, nome, email, cargo, departamento_id, dias_totais_ano, dias_disponiveis }]
+UI.renderUtilizadores = function (lista, deps) {
+  $('#tab-utilizadores').innerHTML = lista.map((u) => {
+    const sel = '<select data-acao="mudar-dept-utilizador" data-id="' + esc(u.id) + '" aria-label="Departamento de ' + esc(u.nome) + '">' +
+      '<option value="">— sem departamento —</option>' +
+      deps.map((d) => '<option value="' + esc(d.id) + '"' + (d.id === u.departamento_id ? ' selected' : '') + '>' + esc(d.nome) + '</option>').join('') + '</select>';
+    const dias = '<input type="number" id="dias-' + esc(u.id) + '" value="' + esc(u.dias_totais_ano) + '" min="0" max="60" style="width:80px" aria-label="Dias por ano de ' + esc(u.nome) + '"> ' +
+      '<button class="btn btn-pequeno" type="button" data-acao="guardar-dias" data-id="' + esc(u.id) + '">Guardar</button>';
+    return '<tr><td>' + esc(u.nome) + '</td><td>' + esc(u.email) + '</td><td>' + esc(u.cargo) + '</td><td>' + sel + '</td><td>' + dias + '</td><td>' + esc(u.dias_disponiveis) +
+      '</td><td><button class="btn btn-pequeno btn-perigo" type="button" data-acao="apagar-utilizador" data-id="' + esc(u.id) + '">Apagar</button></td></tr>';
+  }).join('');
+  mostrarVazio('#tab-utilizadores', '#vazio-utilizadores', lista.length);
+};
+
+$('#form-utilizador').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const d = {
+    nome: $('#ut-nome').value.trim(), email: $('#ut-email').value.trim(), password: $('#ut-password').value,
+    cargo: $('#ut-cargo').value, departamento_id: Number($('#ut-departamento').value) || null,
+    dias_totais_ano: parseInt($('#ut-dias').value, 10),
+  };
+  if (!d.nome || !d.email) return mostrarErro('#ut-erro', 'Preenche o nome e o email.');
+  if (d.password.length < 6) return mostrarErro('#ut-erro', 'A palavra-passe precisa de pelo menos 6 caracteres.');
+  if (isNaN(d.dias_totais_ano) || d.dias_totais_ano < 0) return mostrarErro('#ut-erro', 'Dias por ano inválidos.');
+  mostrarErro('#ut-erro', '');
+  executar('criarUtilizador', d).then((r) => {
+    if (r && r.erro) mostrarErro('#ut-erro', r.erro); else $('#form-utilizador').reset();
+  });
+});
+
+/* ---------- "Ver como" ---------- */
+// lista = [{ id, nome, cargo }]
+UI.preencherSelectVerComo = function (lista) {
+  $('#ver-como-select').innerHTML = opcoes(lista, 'id', (u) => u.nome + ' (' + u.cargo + ')');
+};
+$('#btn-ver-como').addEventListener('click', () => {
+  const id = Number($('#ver-como-select').value);
+  if (id) executar('verComo', id);
+});
+$('#btn-sair-ver-como').addEventListener('click', () => executar('sairVerComo'));
+
+/* ---------- Cliques e mudanças nas tabelas do Admin ---------- */
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('button[data-acao]');
+  if (!b) return;
+  const acao = b.dataset.acao, id = Number(b.dataset.id);
+  if (acao === 'decidir-mais-dias') executar('decidirMaisDias', id, b.dataset.estado);
+  else if (acao === 'apagar-departamento') { if (confirm('Apagar este departamento?')) executar('apagarDepartamento', id); }
+  else if (acao === 'apagar-utilizador') { if (confirm('Apagar este utilizador e os seus pedidos?')) executar('apagarUtilizador', id); }
+  else if (acao === 'guardar-dias') {
+    const v = parseInt($('#dias-' + id).value, 10);
+    if (isNaN(v) || v < 0) return UI.toast('Dias por ano inválidos.', 'erro');
+    executar('atualizarUtilizador', id, { dias_totais_ano: v });
+  }
+});
+document.addEventListener('change', (ev) => {
+  const s = ev.target.closest('select[data-acao]');
+  if (!s) return;
+  const id = Number(s.dataset.id), v = s.value ? Number(s.value) : null;
+  if (s.dataset.acao === 'mudar-chefe') executar('definirChefe', id, v);
+  else if (s.dataset.acao === 'mudar-dept-utilizador') executar('atualizarUtilizador', id, { departamento_id: v });
+});
+
+UI.aoLimpar.push(() => {
+  ['#tab-mais-dias-admin', '#tab-departamentos', '#tab-utilizadores'].forEach((s) => { $(s).innerHTML = ''; });
+});
+
+</script>
+
 <script type="module" src="./app.js"></script>
-<script type="module" src="./js/demo.js"></script>
 
 </body>
 </html>
